@@ -1,0 +1,41 @@
+{
+  "slamConfig" : {
+    "numberOfRovers" : 6,
+    "filterSize" : 64,
+    "rovers" : [
+      {
+        "live" : true,
+        "name" : "achilles",
+        "detection" : {
+          "highDetectionBoundaryInM" : 2.5,
+          "sonarCoverageInRad" : 1.74,
+          "sonarRangeInM" : 3.0
+        },
+        "seif" : {
+          "maxActiveFeatures" : 8,
+          "maxFeatures" : 256
+        }
+      },
+      {
+        "live" : false,
+        "name" : "aeneas"
+      },
+      {
+        "live" : false,
+        "name" : "ajax"
+      },
+      {
+        "live" : false,
+        "name" : "diomedes"
+      },
+      {
+        "live" : false,
+        "name" : "hector"
+      },
+      {
+        "live" : false,
+        "name" : "PARIS"
+      }
+    ]
+  }
+}

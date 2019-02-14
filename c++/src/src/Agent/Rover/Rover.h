@@ -1,0 +1,100 @@
+#include <utility>
+
+#include <utility>
+
+//
+// Created by Mason U'Ren on 2019-02-13.
+//
+
+#ifndef C_ROVER_H
+#define C_ROVER_H
+
+
+#include <functional>
+#include <SLAMConfigIn.h>
+#include <RoverInterface.h>
+#include <boost/uuid/uuid_generators.hpp>
+#include "../../Slam/SEIF/Seif.h"
+#include "../Detection/Detection.h"
+#include "../Moments/Moments.h"
+
+typedef std::function<void(float[3], int)> TransformationCallback;
+
+class Rover : virtual public RoverInterface {
+public:
+    explicit Rover(std::string name = "DUMMY") :
+        ID(boost::uuids::random_generator()()),
+        name(std::move(name)),
+        confidence(1.0),
+        pose(std::shared_ptr<POSE>(new POSE {.x = 0, .y = 0, .theta = 0})),
+        vel(nullptr),
+        seif(nullptr),
+        detection(nullptr),
+        moments(nullptr)
+    {}
+
+    explicit Rover(ROVER_CONFIG *roverConfig) :
+        ID(boost::uuids::random_generator()()),
+        name(roverConfig->name),
+        confidence(1.0),
+        pose(std::shared_ptr<POSE>(new POSE {.x = 0, .y = 0, .theta = 0})),
+        vel(std::shared_ptr<VELOCITY>(new VELOCITY {.linear = 0, .angular = 0})),
+        seif(std::shared_ptr<Seif>(new Seif(&roverConfig->seifConfig))),
+        detection(std::shared_ptr<Detection>(new Detection(&roverConfig->detectionConfig))),
+        moments(std::shared_ptr<Moments>(new Moments()))
+//        localMap(std::shared_ptr<RedBlackTree>(new RedBlackTree()))
+    {}
+
+    ~Rover() override = default;
+
+    unsigned int getID() const override;
+    std::string getName() const override;
+    POSE *getCurrentPose() const override;
+    VELOCITY *getVelocity() const override;
+    float getConfidence() const override;
+
+    void connectTransformationCallbacks(std::array<TransformationCallback, 2> &callbacks);
+    void updatePoseVel(const POSE &pose, VELOCITY velocity);
+    void updateMLIncidentRay(const std::array<SONAR, RANGE_SENSOR_COUNT> &sonar);
+    void updateBelief(const POSE &pose, float confidence);
+    void spareExtendedInformationFilter();
+    void integrateLocalFS(std::array<FEATURE, MAX_FEATURES_IN_SET> features, float classifier);
+    void integrateGlobalFS(std::array<FEATURE, MAX_FEATURES_IN_SET> features, float classifier, int publisher);
+
+private:
+    void setName(std::string name) override;
+    void setCurrentPose(const POSE &belief) override;
+    void setVelocity(VELOCITY velocity) override;
+    void setConfidence(float confi) override;
+
+    void integratePose(const POSE &pose);
+    void integrateFilteredPose(const POSE &pose);
+    void updateMoments();
+    void updateMeans();
+    void updateVariances();
+    void tuneConfi();
+    float *estimateMapTransformation(std::array<FEATURE, MAX_FEATURES_IN_SET> &features,
+            std::array<FEATURE, MAX_FEATURES_IN_SET> &otherFeatures);
+    float *mapTranslation(const std::array<float, 2> &fsOentroid, const std::array<float, 2> &otherOentroid);
+    float mapOrientation(float fsOrientation, float otherOrientation);
+    void shareTransformation(const std::array<float, 3> &transformation, int pairedRover);
+
+    /**
+     * Variables
+     */
+    boost::uuids::uuid ID;
+    std::string name;
+    float confidence;
+    std::shared_ptr<POSE> pose;
+    std::shared_ptr<VELOCITY> vel;
+    std::shared_ptr<Seif> seif;
+    std::shared_ptr<Detection> detection;
+    std::shared_ptr<Moments> moments;
+//    std::shared_ptr<RedBlackTree> localMap;
+
+    static bool writingPose;
+    std::shared_ptr<std::array<TransformationCallback, 2>> callbacks;
+};
+
+
+#endif //C_ROVER_H
