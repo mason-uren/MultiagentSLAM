@@ -5,6 +5,13 @@
 #ifndef C_SHAREDSTRUCT_H
 #define C_SHAREDSTRUCT_H
 
+#include "SLAMConfigIn.h"
+
+#define FILTER_LENGTH 64
+#define RANGE_SENSOR_COUNT 3
+#define MAX_FEATURES_IN_SET 3
+#define MAX_AGENTS 6
+
 /**
  * Enumerations
  */
@@ -12,19 +19,19 @@
 enum class dir {
     LEFT = 0,
     RIGHT
-} DIRECTION;
+};
 
 enum class node_color {
     BLACK = 0,
     RED
-} NODE_COLOR;
+};
 
 enum class descriptor {
     X = 0,
     Y,
     THETA,
     FEAT
-} DESCRIPTOR;
+};
 
 enum class sonar_id {
     LEFT = 0,
@@ -77,6 +84,11 @@ typedef struct {
     float y;
     float theta;
 } POSE;
+
+typedef struct {
+    JSON_CONFIG config;
+    long block_id;
+} SYS_CONFIG_IN;
 
 
 #endif //C_SHAREDSTRUCT_H
