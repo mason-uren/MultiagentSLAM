@@ -13,8 +13,6 @@
 #include "../../Utilities/Filters/MeanFilter.h"
 #include "../../Utilities/Filters/VarianceFilter.h"
 
-enum pos_val { X = 0, Y, THETA };
-
 class Moments {
 public:
     Moments() :

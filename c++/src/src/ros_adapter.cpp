@@ -7,6 +7,7 @@
 #include "Slam/SlamAdapter/SlamAdapter.h"
 #include "Utilities/Filters/MeanFilter.h"
 #include "Utilities/Filters/VarianceFilter.h"
+#include "Utilities/Equations/Equations.h"
 
 void loadDefaultConfig();
 void jsonInitialize();
@@ -18,6 +19,7 @@ void testVarianceFilter();
 void testFIRFilter();
 void testTransformations();
 void testMoments();
+void testEquations();
 
 std::shared_ptr<SharedMemory> sharedMemory;
 std::shared_ptr<ConfigParser> configParser;
@@ -40,8 +42,9 @@ int main() {
 //    testMeanFilter();
 //    testVarianceFilter();
 //    testFIRFilter();
-    testTransformations();
-    testMoments();
+//    testTransformations();
+//    testMoments();
+//    testEquations();
 
     return 0;
 }
@@ -75,6 +78,7 @@ void jsonInitialize() {
 
     SlamAdapter::getInstance();
     ActiveRovers::getInstance();
+    Equations::getInstance();
 
     // TODO : 'callbacks' will need to be setup before becoming active
 
@@ -195,5 +199,35 @@ void testMoments() {
     std::array<MeanFilter<float> *, 3> *means = moments->getMeans();
     std::array<std::string, 3> rovers_names {"achilles", "aeneas", "ajax"};
 
+}
+
+void testEquations() {
+    // Origin to Point
+    std::array<float, 2> ray {5, 1.0472};
+    std::array<float, 3> pose{2, 1, 0};
+    std::array<float, 2> pt = Equations::getInstance()->originToPoint(ray, pose);
+    std::cout << "Origin to pt. (" << (((pt[0] > 6.3 && pt[0] < 6.4) && (pt[1] > 3.48 && pt[1] < 3.5)) ? "PASS" : "FAIL") << ")" << std::endl;
+
+    // Wrapping theta
+    double rad =  M_PI + M_PI_2;
+    float val = Equations::getInstance()->wrapTheta(rad);
+    std::cout << "Wrapping (" << (val > -1.58 && val < -1.56 ? "PASS" : "FAIL") << ")" << std::endl;
+
+    // Normalize Value
+    float norm = Equations::getInstance()->normalizeValue(3, 0, 10);
+    std::cout << "Norm (" << ((norm > 0.29 && norm < 0.31) ? "PASS" : "FAIL") << ")" << std::endl;
+
+    // Centroid
+    std::array<std::array<float, 2>, 3> pairs = {};
+    pairs.at(0) = {0, 0};
+    pairs.at(1) = {3, 0};
+    pairs.at(2) = {3, 4};
+    std::array<float, 2> result = Equations::getInstance()->centroid(pairs);
+    std::cout << "Centroid (" << ((result[0] == 2 && result[1] < 1.4 && result[1] > 1.2) ? "PASS" : "FAIL") << ")" <<std::endl;
+
+    // Cantor
+    std::cout << "Cantor (" <<
+        ((Equations::getInstance()->cantor(1, -3) == Equations::getInstance()->cantor(-1, -3)) ?
+        "FAIL" : "PASS") << ")" << std::endl;
 }
 

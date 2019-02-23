@@ -35,6 +35,7 @@ set(
         ${DIR_MACRO}Slam/SEIF/Seif.cpp
         ${DIR_MACRO}Slam/SlamAdapter/SlamAdapter.cpp
         ${DIR_MACRO}Utilities/ConfigParser/ConfigParser.cpp
+        ${DIR_MACRO}Utilities/Equations/Equations.cpp
 )
 
 
