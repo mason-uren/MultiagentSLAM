@@ -39,13 +39,13 @@ int main() {
     loadDefaultConfig();
     jsonInitialize(); // All initialization should occur here.
 
-//    printActiveRovers();
-//    testMeanFilter();
-//    testVarianceFilter();
-//    testFIRFilter();
-//    testTransformations();
-//    testMoments();
-//    testEquations();
+    printActiveRovers();
+    testMeanFilter();
+    testVarianceFilter();
+    testFIRFilter();
+    testTransformations();
+    testMoments();
+    testEquations();
     testRedBlackTree();
 
     return 0;
@@ -81,10 +81,7 @@ void jsonInitialize() {
     SlamAdapter::getInstance();
     ActiveRovers::getInstance();
     Equations::getInstance();
-
-    // TODO : need to create instances of Seif, Detection, Moments, and Local Map
-    // TODO : objects should be layered into eachother, built into one another.
-
+    Moments::getInstance();
 
 
     // TODO : 'callbacks' will need to be setup before becoming active
@@ -201,9 +198,8 @@ void testTransformations() {
 }
 
 void testMoments() {
-    Moments *moments = new Moments();
-    std::array<VarianceFilter<float> *, 3> *var = moments->getVariances();
-    std::array<MeanFilter<float> *, 3> *means = moments->getMeans();
+    std::array<VarianceFilter<float> *, 3> *var = Moments::getInstance()->getVariances();
+    std::array<MeanFilter<float> *, 3> *means = Moments::getInstance()->getMeans();
     std::array<std::string, 3> rovers_names {"achilles", "aeneas", "ajax"};
 
 }

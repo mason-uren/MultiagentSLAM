@@ -39,11 +39,10 @@ public:
         // TODO : should all be static
         seif(new Seif(&roverConfig->seifConfig)),
         detection(new Detection(&roverConfig->detectionConfig)),
-        moments(new Moments()),
         localMap(new RedBlackTree(roverConfig->seifConfig.maxFeatures))
     {}
 
-    virtual ~Rover() override = default;
+    ~Rover() override = default;
 
     unsigned int getID() const override;
     std::string getName() const override;
@@ -87,7 +86,6 @@ private:
     std::shared_ptr<VELOCITY> vel;
     std::shared_ptr<Seif> seif;
     std::shared_ptr<Detection> detection;
-    std::shared_ptr<Moments> moments;
     std::shared_ptr<RedBlackTree> localMap;
 
     static bool writingPose;
