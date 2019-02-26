@@ -46,7 +46,7 @@ enum class sonar_id {
 typedef struct {
     float xRelative;
     float yRelative;
-    float indcidentRay;
+    float incidentRay;
 } FEATURE;
 
 typedef struct {

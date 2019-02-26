@@ -20,6 +20,7 @@ void testFIRFilter();
 void testTransformations();
 void testMoments();
 void testEquations();
+void testRedBlackTree();
 
 std::shared_ptr<SharedMemory> sharedMemory;
 std::shared_ptr<ConfigParser> configParser;
@@ -45,6 +46,7 @@ int main() {
 //    testTransformations();
 //    testMoments();
 //    testEquations();
+    testRedBlackTree();
 
     return 0;
 }
@@ -79,6 +81,11 @@ void jsonInitialize() {
     SlamAdapter::getInstance();
     ActiveRovers::getInstance();
     Equations::getInstance();
+
+    // TODO : need to create instances of Seif, Detection, Moments, and Local Map
+    // TODO : objects should be layered into eachother, built into one another.
+
+
 
     // TODO : 'callbacks' will need to be setup before becoming active
 
@@ -229,5 +236,9 @@ void testEquations() {
     std::cout << "Cantor (" <<
         ((Equations::getInstance()->cantor(1, -3) == Equations::getInstance()->cantor(-1, -3)) ?
         "FAIL" : "PASS") << ")" << std::endl;
+}
+
+void testRedBlackTree() {
+
 }
 

@@ -32,7 +32,8 @@ public:
             leftSonarFilter(new FIRFilter<float, FILTER_LENGTH>(buffers->left)),
             centerSonarFilter(new FIRFilter<float, FILTER_LENGTH>(buffers->center)),
             rightSonarFilter(new FIRFilter<float, FILTER_LENGTH>(buffers->right)){}
-    ~Detection() override;
+
+    ~Detection() override = default;
 
     bool hasIncidentRay() override;
     RAY *getIncidentRay() override;

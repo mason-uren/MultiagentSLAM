@@ -15,6 +15,7 @@
 #include <RoverInterface.h>
 #include <boost/uuid/uuid_generators.hpp>
 #include "../../Slam/SEIF/Seif.h"
+#include "../../Utilities/BinaryTree/RedBlackTree.h"
 #include "../Detection/Detection.h"
 #include "../Moments/Moments.h"
 
@@ -26,26 +27,23 @@ public:
         ID(boost::uuids::random_generator()()),
         name(std::move(name)),
         confidence(1.0),
-        pose(std::shared_ptr<POSE>(new POSE {.x = 0, .y = 0, .theta = 0})),
-        vel(nullptr),
-        seif(nullptr),
-        detection(nullptr),
-        moments(nullptr)
+        pose(std::shared_ptr<POSE>(new POSE {.x = 0, .y = 0, .theta = 0}))
     {}
 
     explicit Rover(ROVER_CONFIG *roverConfig) :
         ID(boost::uuids::random_generator()()),
         name(roverConfig->name),
         confidence(1.0),
-        pose(std::shared_ptr<POSE>(new POSE {.x = 0, .y = 0, .theta = 0})),
-        vel(std::shared_ptr<VELOCITY>(new VELOCITY {.linear = 0, .angular = 0})),
-        seif(std::shared_ptr<Seif>(new Seif(&roverConfig->seifConfig))),
-        detection(std::shared_ptr<Detection>(new Detection(&roverConfig->detectionConfig))),
-        moments(std::shared_ptr<Moments>(new Moments()))
-//        localMap(std::shared_ptr<RedBlackTree>(new RedBlackTree()))
+        pose(new POSE {.x = 0, .y = 0, .theta = 0}),
+        vel(new VELOCITY {.linear = 0, .angular = 0}),
+        // TODO : should all be static
+        seif(new Seif(&roverConfig->seifConfig)),
+        detection(new Detection(&roverConfig->detectionConfig)),
+        moments(new Moments()),
+        localMap(new RedBlackTree(roverConfig->seifConfig.maxFeatures))
     {}
 
-    ~Rover() override = default;
+    virtual ~Rover() override = default;
 
     unsigned int getID() const override;
     std::string getName() const override;
@@ -90,7 +88,7 @@ private:
     std::shared_ptr<Seif> seif;
     std::shared_ptr<Detection> detection;
     std::shared_ptr<Moments> moments;
-//    std::shared_ptr<RedBlackTree> localMap;
+    std::shared_ptr<RedBlackTree> localMap;
 
     static bool writingPose;
     std::shared_ptr<std::array<TransformationCallback, 2>> callbacks;
