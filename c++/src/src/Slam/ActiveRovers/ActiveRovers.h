@@ -24,8 +24,7 @@ public:
 
 private:
     ActiveRovers() :
-            active(std::shared_ptr<std::unordered_map<std::string, RoverInterface *>>(
-                    new std::unordered_map<std::string, RoverInterface *>())) {}
+            active(new std::unordered_map<std::string, RoverInterface *>()) {}
     ActiveRovers(ActiveRovers const&);
     void operator=(ActiveRovers const&);
 

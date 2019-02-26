@@ -36,9 +36,7 @@ public:
 private:
     SlamAdapter() :
             rover(std::shared_ptr<Rover>(new Rover())),
-            transformations(std::shared_ptr<std::unordered_map<std::string, Transformation *>>(
-                    new std::unordered_map<std::string, Transformation *>())
-                )
+            transformations(new std::unordered_map<std::string, Transformation *>())
             {}
 
     SlamAdapter(SlamAdapter const&);

@@ -20,6 +20,7 @@ void testFIRFilter();
 void testTransformations();
 void testMoments();
 void testEquations();
+void testRedBlackTree();
 
 std::shared_ptr<SharedMemory> sharedMemory;
 std::shared_ptr<ConfigParser> configParser;
@@ -38,13 +39,14 @@ int main() {
     loadDefaultConfig();
     jsonInitialize(); // All initialization should occur here.
 
-//    printActiveRovers();
-//    testMeanFilter();
-//    testVarianceFilter();
-//    testFIRFilter();
-//    testTransformations();
-//    testMoments();
-//    testEquations();
+    printActiveRovers();
+    testMeanFilter();
+    testVarianceFilter();
+    testFIRFilter();
+    testTransformations();
+    testMoments();
+    testEquations();
+    testRedBlackTree();
 
     return 0;
 }
@@ -79,6 +81,8 @@ void jsonInitialize() {
     SlamAdapter::getInstance();
     ActiveRovers::getInstance();
     Equations::getInstance();
+    Moments::getInstance();
+
 
     // TODO : 'callbacks' will need to be setup before becoming active
 
@@ -194,9 +198,8 @@ void testTransformations() {
 }
 
 void testMoments() {
-    Moments *moments = new Moments();
-    std::array<VarianceFilter<float> *, 3> *var = moments->getVariances();
-    std::array<MeanFilter<float> *, 3> *means = moments->getMeans();
+    std::array<VarianceFilter<float> *, 3> *var = Moments::getInstance()->getVariances();
+    std::array<MeanFilter<float> *, 3> *means = Moments::getInstance()->getMeans();
     std::array<std::string, 3> rovers_names {"achilles", "aeneas", "ajax"};
 
 }
@@ -229,5 +232,9 @@ void testEquations() {
     std::cout << "Cantor (" <<
         ((Equations::getInstance()->cantor(1, -3) == Equations::getInstance()->cantor(-1, -3)) ?
         "FAIL" : "PASS") << ")" << std::endl;
+}
+
+void testRedBlackTree() {
+
 }
 
