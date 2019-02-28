@@ -39,14 +39,14 @@ int main() {
     loadDefaultConfig();
     jsonInitialize(); // All initialization should occur here.
 
-    printActiveRovers();
-    testMeanFilter();
-    testVarianceFilter();
-    testFIRFilter();
-    testTransformations();
-    testMoments();
-    testEquations();
-    testRedBlackTree();
+//    printActiveRovers();
+//    testMeanFilter();
+//    testVarianceFilter();
+//    testFIRFilter();
+//    testTransformations();
+//    testMoments();
+//    testEquations();
+//    testRedBlackTree();
 
     return 0;
 }
@@ -54,7 +54,7 @@ int main() {
 void loadDefaultConfig() {
     json jsonFileConfig;
 
-    // Working directory set at 'src' (root)
+    // Working directory valid at 'src' (root)
     std::string filePath = "Config/slam_in.json";
 
     if (!configParser->loadJSONFromFile(filePath, &jsonFileConfig)) {
@@ -115,7 +115,7 @@ void jsonInitialize() {
  * Testing Functions
  */
 void printActiveRovers() {
-    std::unordered_map<std::string, RoverInterface *> rovers = *ActiveRovers::getInstance()->getActiveRovers();
+    std::unordered_map<std::string, Rover *> rovers = *ActiveRovers::getInstance()->getActiveRovers();
     for (auto &rover : rovers) {
         std::cout << "Rover" << std::endl;
         std::cout << "Name : " << rover.second->getName() << std::endl;
@@ -235,6 +235,65 @@ void testEquations() {
 }
 
 void testRedBlackTree() {
+    Rover rover = Rover();
+    std::vector<double> sampleSignatures {
+        1, 2.0, -3, 4, -5, -10.33, 11.5, -50.7, 7, -6
+    };
+    CLASSIFIER dummyClassifier {.area = 5, .orientation = 12.5, .signature = 11};
+    std::vector<CLASSIFIER> sampleClassifiers {
+        CLASSIFIER(),
+        CLASSIFIER(),
+        CLASSIFIER(),
+        CLASSIFIER(),
+        CLASSIFIER(),
 
+        CLASSIFIER(),
+        CLASSIFIER{.area = 5, .orientation = 12, .signature = 11.5},
+        CLASSIFIER(),
+        CLASSIFIER(),
+        CLASSIFIER(),
+    };
+    std::array<FEATURE, 3> sampleFeatures {
+        FEATURE{.xRelative = 0.3, .yRelative = 1.57, .incidentRay = 3.14},
+        FEATURE(),
+        FEATURE()
+    };
+
+    for (int i = 0; i < sampleClassifiers.size(); i++) {
+        sampleClassifiers[i].signature = (float) sampleSignatures[i];
+    }
+
+    // Create tree
+    if (ActiveRovers::getInstance()->getRoverByName("achilles", rover)) {
+        for (auto classifier : sampleClassifiers) {
+            (*rover.getLocalMap()).addToTree(classifier, sampleFeatures);
+        }
+    }
+
+    // Check if tree is balanced
+    std::cout << "Root : " << *(*rover.getLocalMap()).getRoot() << std::endl;
+    (*rover.getLocalMap()).printTree(new NODE_PTR{.valid = true, .node_ptr = *(*rover.getLocalMap()).getRoot()}, 0);
+
+    // Check ML classifier (looking for like features)
+    unsigned long index = 0;
+    (*rover.getLocalMap()).findMLClassifier(dummyClassifier, index);
+    std::cout << "Find Classifier (" << ((index == 6) ? "PASS" : "FAIL") << ")" << std::endl;
+
+    // Get features from node
+    std::array<FEATURE, 3> featuresToPop {
+        FEATURE(),
+        FEATURE(),
+        FEATURE(),
+    };
+    rover.getLocalMap()->getFeaturesFromNode(featuresToPop, index);
+
+    featuresToPop[0].xRelative = -1.2;
+    std::cout << "Get features from node (" <<
+        ((featuresToPop[0].incidentRay == sampleFeatures[0].incidentRay && sampleFeatures[0].xRelative != -1.2) ?
+        "PASS" : "FAIL") << ")" << std::endl;
+
+    // Reset Tree
+    (*rover.getLocalMap()).resetTree();
+    std::cout << "Reset Tree ("  << ((*rover.getLocalMap()->getRoot()) ? "FAIL" : "PASS") << ")" << std::endl;
 }
 

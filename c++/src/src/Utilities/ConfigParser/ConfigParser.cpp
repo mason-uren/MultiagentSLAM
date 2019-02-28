@@ -16,7 +16,7 @@ void ConfigParser::parseConfig(SYS_CONFIG_IN *in, json *dataPtr) {
     ROVER_CONFIG *roversConfig;
     SEIF_CONFIG *seifConfig;
     DETECTION_CONFIG *detectionConfig;
-
+    LOCAL_MAP_CONFIG *localMapConfig;
 
     config->hash = hasher(data);
 
@@ -30,6 +30,7 @@ void ConfigParser::parseConfig(SYS_CONFIG_IN *in, json *dataPtr) {
             slamConfig->valid = true;
             slamConfig->numberOfRovers = data["slamConfig"]["numberOfRovers"].get<int>();
             slamConfig->filterSize = data["slamConfig"]["filterSize"].get<int>();
+            slamConfig->maxFeatures = data["slamConfig"]["maxFeatures"].get<unsigned long>();
 
             for (unsigned int rover_id = 0; rover_id < slamConfig->numberOfRovers; rover_id++) {
                 roversConfig = &(slamConfig->rovers[rover_id]);
@@ -57,11 +58,21 @@ void ConfigParser::parseConfig(SYS_CONFIG_IN *in, json *dataPtr) {
                             seifConfig->valid = true;
                             seifConfig->maxActiveFeatures =
                                     data["slamConfig"]["rovers"][rover_id]["seif"]["maxActiveFeatures"].get<int>();
-                            seifConfig->maxFeatures =
-                                    data["slamConfig"]["rovers"][rover_id]["seif"]["maxFeatures"].get<long>();
+                            seifConfig->maxFeatures = slamConfig->maxFeatures;
+//                            seifConfig->maxFeatures =
+//                                    data["slamConfig"]["rovers"][rover_id]["seif"]["maxFeatures"].get<long>();
                         }
                         else {
                             seifConfig->valid = false;
+                        }
+                        localMapConfig = &(roversConfig[rover_id].localMapConfig);
+                        if (!data["slamConfig"]["rovers"][rover_id]["localMap"].is_null()) {
+                            localMapConfig->valid = true;
+                            localMapConfig->featureSetML = data["slamConfig"]["rovers"][rover_id]["localMap"]["featureSetML"].get<float>();
+                            localMapConfig->maxFeatures = slamConfig->maxFeatures;
+                        }
+                        else {
+                            localMapConfig->valid = false;
                         }
                     }
                 }

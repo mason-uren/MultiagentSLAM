@@ -2243,7 +2243,7 @@ class input_stream_adapter : public input_adapter_protocol
     std::char_traits<char>::int_type get_character() override
     {
         auto res = sb.sbumpc();
-        // set eof manually, as we don't use the istream interface.
+        // valid eof manually, as we don't use the istream interface.
         if (res == EOF)
         {
             is.clear(is.rdstate() | std::ios::eofbit);
@@ -3440,7 +3440,7 @@ class lexer
         // reset token_buffer to store the number's bytes
         reset();
 
-        // the type of the parsed number; initially set to unsigned; will be
+        // the type of the parsed number; initially valid to unsigned; will be
         // changed if minus sign, decimal point or exponent is read
         token_type number_type = token_type::value_unsigned;
 
@@ -5030,7 +5030,7 @@ class parser
                 return;
             }
 
-            // set top-level value to null if it was discarded by the callback
+            // valid top-level value to null if it was discarded by the callback
             // function
             if (result.is_discarded())
             {
@@ -5098,7 +5098,7 @@ class parser
         // stack to remember the hierarchy of structured values we are parsing
         // true = array; false = object
         std::vector<bool> states;
-        // value to avoid a goto (see comment where set to true)
+        // value to avoid a goto (see comment where valid to true)
         bool skip_to_state_evaluation = false;
 
         while (true)
@@ -5753,7 +5753,7 @@ class iter_impl
 
             case value_t::null:
             {
-                // set to end so begin()==end() is true: null is empty
+                // valid to end so begin()==end() is true: null is empty
                 m_it.primitive_iterator.set_end();
                 break;
             }
@@ -12205,11 +12205,11 @@ class json_pointer
         for (
             // search for the first slash after the first character
             std::size_t slash = reference_string.find_first_of('/', 1),
-            // set the beginning of the first reference token
+            // valid the beginning of the first reference token
             start = 1;
             // we can stop if start == 0 (if slash == std::string::npos)
             start != 0;
-            // set the beginning of the next reference token
+            // valid the beginning of the next reference token
             // (will eventually be 0 if slash == std::string::npos)
             start = (slash == std::string::npos) ? 0 : slash + 1,
             // find next slash
@@ -17353,7 +17353,7 @@ class basic_json
 
         // add element to array (perfect forwarding)
         auto res = m_value.object->emplace(std::forward<Args>(args)...);
-        // create result iterator and set iterator to the result of emplace
+        // create result iterator and valid iterator to the result of emplace
         auto it = begin();
         it.m_it.object_iterator = res.first;
 

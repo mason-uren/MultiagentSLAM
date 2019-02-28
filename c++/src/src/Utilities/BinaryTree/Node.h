@@ -7,10 +7,13 @@
 
 #include <iostream>
 #include <array>
-#include <SharedMemoryStructs.h>
-#include <boost/math/distributions.hpp>
 
 using namespace boost::math;
+
+typedef struct {
+    bool valid;
+    unsigned long node_ptr;
+} NODE_PTR;
 
 class Node {
 public:
@@ -24,18 +27,31 @@ public:
                 }
         ),
         color(node_color::RED),
-        isSet(false) {}
+        location(new NODE_PTR{.valid = false, .node_ptr = 0}),
+        leftChild(new NODE_PTR{.valid = false, .node_ptr = 0}),
+        rightChild(new NODE_PTR{.valid = false, .node_ptr = 0})
+        {}
     ~Node() = default;
+
+    bool operator == (const Node &node) const {
+        return classifier->signature == node.classifier->signature;
+    }
 
     std::shared_ptr<CLASSIFIER> classifier;
     std::shared_ptr<std::array<FEATURE, 3>> featureSet;
     node_color color;
-    std::shared_ptr<int> parent;
-    std::shared_ptr<int> leftChild;
-    std::shared_ptr<int> rightChild;
-    bool isSet;
+    std::shared_ptr<NODE_PTR> location;
+    std::shared_ptr<NODE_PTR> leftChild;
+    std::shared_ptr<NODE_PTR> rightChild;
 
-    static std::shared_ptr<normal> distribution;
+    static const std::shared_ptr<normal> distribution;
+
+    void saveLocationPtr(const unsigned long &index) {
+        if (!location->valid) {
+            location->valid = true;
+            location->node_ptr = index;
+        }
+    }
 };
 
 #endif //MULTIAGENTSLAM_NODE_H

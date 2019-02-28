@@ -25,10 +25,17 @@ typedef struct {
 } DETECTION_CONFIG;
 
 typedef struct {
+    bool valid;
+    float featureSetML{};
+    unsigned long maxFeatures{};
+} LOCAL_MAP_CONFIG;
+
+typedef struct {
     bool valid{};
     bool live{};
     int ID{};
     std::string name;
+    LOCAL_MAP_CONFIG localMapConfig;
     DETECTION_CONFIG detectionConfig;
     SEIF_CONFIG seifConfig;
 } ROVER_CONFIG;
@@ -37,6 +44,7 @@ typedef struct {
     bool valid{};
     int numberOfRovers{};
     int filterSize{};
+    unsigned long maxFeatures{};
     ROVER_CONFIG rovers[6];
 } SLAM_CONFIG;
 

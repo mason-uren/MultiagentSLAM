@@ -36,10 +36,9 @@ public:
         confidence(1.0),
         pose(new POSE {.x = 0, .y = 0, .theta = 0}),
         vel(new VELOCITY {.linear = 0, .angular = 0}),
-        // TODO : should all be static
         seif(new Seif(&roverConfig->seifConfig)),
         detection(new Detection(&roverConfig->detectionConfig)),
-        localMap(new RedBlackTree(roverConfig->seifConfig.maxFeatures))
+        localMap(new RedBlackTree(&roverConfig->localMapConfig))
     {}
 
     ~Rover() override = default;
@@ -57,6 +56,11 @@ public:
     void spareExtendedInformationFilter();
     void integrateLocalFS(std::array<FEATURE, MAX_FEATURES_IN_SET> features, float classifier);
     void integrateGlobalFS(std::array<FEATURE, MAX_FEATURES_IN_SET> features, float classifier, int publisher);
+
+    // For testing purposes only!
+    RedBlackTree *getLocalMap() {
+        return &(*localMap);
+    }
 
 private:
     void setName(std::string name) override;

@@ -11,7 +11,7 @@
 
 class RoverFactory {
 public:
-    static RoverInterface *create(ROVER_CONFIG *roverConfig);
+    static Rover *create(ROVER_CONFIG *roverConfig);
 };
 
 
