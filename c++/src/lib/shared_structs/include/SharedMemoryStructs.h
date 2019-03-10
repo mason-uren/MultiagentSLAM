@@ -16,10 +16,8 @@
  * Enumerations
  */
 
-enum class dir {
-    LEFT = 0,
-    RIGHT
-};
+enum pos_val { X = 0, Y, THETA };
+enum ray_val { RANGE = 0, ANGLE = 1};
 
 enum class node_color {
     BLACK = 0,
@@ -46,7 +44,7 @@ enum class sonar_id {
 typedef struct {
     float xRelative;
     float yRelative;
-    float indcidentRay;
+    float incidentRay;
 } FEATURE;
 
 typedef struct {

@@ -4,14 +4,14 @@
 
 #include "ActiveRovers.h"
 
-void ActiveRovers::addRover(RoverInterface &rover) {
+void ActiveRovers::addRover(Rover &rover) {
     this->active->insert(std::make_pair(rover.getName(), &rover));
 }
 
-bool ActiveRovers::getRoverByName(const std::string &name, Rover *rover) {
+bool ActiveRovers::getRoverByName(const std::string &name, Rover &rover) {
     try {
-        rover = dynamic_cast<Rover *>(this->active->at(name));
-        return false;
+        rover = *this->active->at(name);
+        return true;
     }
     catch (const std::out_of_range &error) {
         std::cerr << "Rover name not found : " << error.what() << std::endl;
@@ -19,7 +19,7 @@ bool ActiveRovers::getRoverByName(const std::string &name, Rover *rover) {
     return false;
 }
 
-bool ActiveRovers::getRoverByID(const int &id, Rover *rover) {
+bool ActiveRovers::getRoverByID(const int &id, Rover &rover) {
     try {
         std::string name;
         for (auto &roverObj : *this->active) {
@@ -35,7 +35,7 @@ bool ActiveRovers::getRoverByID(const int &id, Rover *rover) {
     return false;
 }
 
-std::unordered_map<std::string, RoverInterface *> * ActiveRovers::getActiveRovers() {
+std::unordered_map<std::string, Rover *> * ActiveRovers::getActiveRovers() {
     return &(*this->active);
 }
 

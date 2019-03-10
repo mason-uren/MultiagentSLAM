@@ -35,3 +35,11 @@ std::array<float, 2> Equations::centroid(const std::array<std::array<float, 2>, 
 float Equations::cantor(const float &val_1, const float &val_2) {
     return val_2 + (val_1 + val_2) * (val_1 + val_2 + 1) / 2;
 }
+
+float Equations::straightAvg(const std::vector<float> &toAvg) {
+    float total = 0;
+    for (auto value : toAvg) {
+        total += value;
+    }
+    return total / toAvg.size();
+}

@@ -7,10 +7,10 @@
 
 
 #include <array>
+#include <vector>
+#include <numeric>
 #include <math.h>
-
-enum pos_val { X = 0, Y, THETA };
-enum ray_val { RANGE = 0, ANGLE = 1};
+#include <SharedMemoryStructs.h>
 
 class Equations {
 public:
@@ -24,6 +24,7 @@ public:
     float normalizeValue(const float &value, const float &lowbound, const float &highbound);
     std::array<float, 2> centroid(const std::array<std::array<float, 2>, 3> &coordinatePairs);
     float cantor(const float &val_1, const float &val_2);
+    float straightAvg(const std::vector<float> &toAvg);
 
 private:
     Equations () = default;
