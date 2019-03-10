@@ -62,7 +62,6 @@ typedef struct {
 } CLASSIFIER;
 
 typedef struct {
-    bool valid;
     sonar_id id;
     float observedRange;
 } SONAR;
@@ -85,7 +84,7 @@ typedef struct {
 
 typedef struct {
     JSON_CONFIG config;
-    long block_id;
+    long block_id{};
 } SYS_CONFIG_IN;
 
 
