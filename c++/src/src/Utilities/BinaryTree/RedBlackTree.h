@@ -66,7 +66,7 @@ private:
     unsigned long root;
     std::shared_ptr<std::vector<Node>> tree;
     std::shared_ptr<std::vector<Node>> cleanTree;
-    const float minProbability;
+    float minProbability;
 };
 
 

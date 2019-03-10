@@ -1,13 +1,20 @@
+#include <memory>
+
 #include <iostream>
 #include <sstream>
 
-#include "Utilities/SharedMemory/SharedMemory.h"
-#include "Utilities/ConfigParser/ConfigParser.h"
+#include <MeanFilter.h>
+#include <VarianceFilter.h>
+#include <Matrix.h>
+#include <MatrixManipulator.h>
+
 #include "Agent/Rover/RoverFactory.h"
 #include "Slam/SlamAdapter/SlamAdapter.h"
-#include "Utilities/Filters/MeanFilter.h"
-#include "Utilities/Filters/VarianceFilter.h"
+#include "Utilities/SharedMemory/SharedMemory.h"
+#include "Utilities/ConfigParser/ConfigParser.h"
 #include "Utilities/Equations/Equations.h"
+
+
 
 void loadDefaultConfig();
 void jsonInitialize();
@@ -21,38 +28,45 @@ void testTransformations();
 void testMoments();
 void testEquations();
 void testRedBlackTree();
+void testDetections();
+void testMatrix();
+void testMatrixMan();
 
-std::shared_ptr<SharedMemory> sharedMemory;
-std::shared_ptr<ConfigParser> configParser;
-SYS_CONFIG_IN *systemConfig;
+static std::shared_ptr<SharedMemory> sharedMemory;
+static std::shared_ptr<ConfigParser> configParser;
+static std::shared_ptr<Seif> seif;
+static std::shared_ptr<Detection> detection;
+static std::shared_ptr<RedBlackTree> localMap;
+static std::shared_ptr<SYS_CONFIG_IN> systemConfig;
+
 
 using json = nlohmann::json;
 
 int main() {
 
-    /**
-     * TODO This initialization should not be occuring here.
-     */
-    sharedMemory = std::shared_ptr<SharedMemory>(new SharedMemory());
-    configParser = std::shared_ptr<ConfigParser>(new ConfigParser());
-    systemConfig = new SYS_CONFIG_IN();
     loadDefaultConfig();
     jsonInitialize(); // All initialization should occur here.
 
 //    printActiveRovers();
 //    testMeanFilter();
 //    testVarianceFilter();
-//    testFIRFilter();
+//    testFIRFilter();f
 //    testTransformations();
 //    testMoments();
 //    testEquations();
 //    testRedBlackTree();
+//    testDetections();
+//    testMatrix();
+    testMatrixMan();
 
     return 0;
 }
 
 void loadDefaultConfig() {
     json jsonFileConfig;
+    systemConfig = std::make_shared<SYS_CONFIG_IN>();
+    configParser = std::make_shared<ConfigParser>();
+    sharedMemory = std::make_shared<SharedMemory>();
 
     // Working directory valid at 'src' (root)
     std::string filePath = "Config/slam_in.json";
@@ -63,15 +77,15 @@ void loadDefaultConfig() {
         std::cerr << root.str() << strerror(errno);
         exit(1);
     }
-    configParser->parseConfig(systemConfig, &jsonFileConfig);
+    configParser->parseConfig(&(*systemConfig), &jsonFileConfig);
     systemConfig->block_id++;
-    sharedMemory->writeMemoryIn(systemConfig);
+    sharedMemory->writeMemoryIn(&(*systemConfig));
     std::cout << "Configuration Parsed." << std::endl;
 }
 
 void jsonInitialize() {
     while (true) {
-        if (!sharedMemory->readMemoryIn(systemConfig) && systemConfig->config.hash != 0) {
+        if (!sharedMemory->readMemoryIn(&(*systemConfig)) && systemConfig->config.hash != 0) {
             std::cout << "Configuration Loaded." << std::endl;
             break;
         }
@@ -82,25 +96,35 @@ void jsonInitialize() {
     ActiveRovers::getInstance();
     Equations::getInstance();
     Moments::getInstance();
+    MatrixManipulator::getInstance();
 
 
     // TODO : 'callbacks' will need to be setup before becoming active
 
     // Need to populate activeRovers and build translation based on number of rovers.
-    std::shared_ptr<SLAM_CONFIG> slamConfig(&systemConfig->config.slamConfig);
-    if (slamConfig->valid) {
-        for (unsigned int rover_id = 0; rover_id < slamConfig->numberOfRovers; rover_id++) {
-            ROVER_CONFIG rover = slamConfig->rovers[rover_id];
-            if (rover.valid) {
-                rover.ID = rover_id;
+    SLAM_CONFIG slamConfig = systemConfig->config.slamConfig;
+    if (slamConfig.valid) {
+        for (unsigned int rover_id = 0; rover_id < slamConfig.numberOfRovers; rover_id++) {
+            ROVER_CONFIG roverConfig = slamConfig.rovers[rover_id];
+            if (roverConfig.valid) {
+                roverConfig.ID = rover_id;
+                ActiveRovers::getInstance()->addRover(*RoverFactory::create(&roverConfig));
+                SlamAdapter::getInstance()->addTransformation(roverConfig.name, new Transformation());
 
-                /*
-                 * if NOT live - create
-                 * if live - must have valid detectionConfig and seifConfig
-                 */
-                if (!rover.live || (rover.detectionConfig.valid && rover.seifConfig.valid)) {
-                    ActiveRovers::getInstance()->addRover(*RoverFactory::create(&rover));
-                    SlamAdapter::getInstance()->addTransformation(rover.name, new Transformation());
+                DETECTION_CONFIG detectionConfig = slamConfig.detectionConfig;
+                SEIF_CONFIG seifConfig = slamConfig.seifConfig;
+                LOCAL_MAP_CONFIG localMapConfig = slamConfig.localMapConfig;
+                if (roverConfig.live &&
+                    (detectionConfig.valid && seifConfig.valid && localMapConfig.valid)) {
+                    detection = std::make_shared<Detection>(&detectionConfig);
+                    seif = std::make_shared<Seif>(&seifConfig);
+                    localMap = std::make_shared<RedBlackTree>(&localMapConfig);
+
+                    Rover *rover = new Rover();
+                    ActiveRovers::getInstance()->getRoverByName(roverConfig.name, *rover);
+                    rover->addDetection(&(*detection));
+                    rover->addSeif(&(*seif));
+                    rover->addLocalMap(&(*localMap));
                 }
             }
         }
@@ -289,11 +313,109 @@ void testRedBlackTree() {
 
     featuresToPop[0].xRelative = -1.2;
     std::cout << "Get features from node (" <<
-        ((featuresToPop[0].incidentRay == sampleFeatures[0].incidentRay && sampleFeatures[0].xRelative != -1.2) ?
+        ((featuresToPop[0].xRelative == sampleFeatures[0].xRelative && sampleFeatures[0].xRelative != -1.2) ?
         "PASS" : "FAIL") << ")" << std::endl;
 
     // Reset Tree
     (*rover.getLocalMap()).resetTree();
     std::cout << "Reset Tree ("  << ((*rover.getLocalMap()->getRoot()) ? "FAIL" : "PASS") << ")" << std::endl;
+}
+
+void testDetections() {
+    std::array<SONAR, 3> sampleSonar {
+        SONAR{.id = sonar_id::LEFT, .observedRange = -1},
+        SONAR{.id = sonar_id::CENTER, .observedRange = 1},
+        SONAR{.id = sonar_id ::RIGHT, .observedRange = 1}
+    };
+
+    Rover rover = Rover();
+    if (ActiveRovers::getInstance()->getRoverByName("achilles", rover)) {
+        rover.getDetections()->MLIncidentRay(sampleSonar);
+        std::cout << "Detection : " << rover.getDetections()->hasIncidentRay() << std::endl;
+        RAY *ray = rover.getDetections()->getIncidentRay();
+    }
+}
+
+void testMatrix() {
+    Matrix<float> matrix(2, 3);
+    matrix.at(0, 0) = 1;
+    matrix.at(0, 1) = 2;
+    matrix.at(0, 2) = 3;
+    matrix.at(1, 0) = 4;
+    matrix.at(1, 1) = 5;
+    matrix.at(1, 2) = 6;
+
+    std::cout << "Matrix Template (" <<
+        ((matrix.at(0, 0) == 1) ? "PASS" : "FAIL") << ")" << std::endl;
+
+    matrix.transpose();
+
+    matrix.print();
+
+
+    std::cout << "Matrix Transpose (" <<
+        ((matrix.at(0, 1) == 4 && matrix.at(2, 0) == 3) ? "PASS" : "FAIL") << ")" << std::endl;
+
+    std::cout << "Reset Matrix" <<std::endl;
+    matrix.resetMatrix();
+    matrix.print();
+
+}
+
+void testMatrixMan() {
+    // Testing inverting matrices (also determinant)
+    Matrix<float> matrix(3, 3);
+    matrix.at(0, 0) = 3, matrix.at(0, 1) = 0, matrix.at(0, 2) = 2;
+    matrix.at(1, 0) = 2, matrix.at(1, 1) = 0, matrix.at(1, 2) = -2;
+    matrix.at(2, 0) = 0, matrix.at(2, 1) = 1, matrix.at(2, 2) = 1;
+
+    MatrixManipulator::getInstance()->invert<float>(&matrix);
+
+    Matrix<float> inverse(3, 3);
+    inverse.at(0, 0) = 0.2, inverse.at(0, 1) = 0.2, inverse.at(0, 2) = 0;
+    inverse.at(1, 0) = -0.2, inverse.at(1, 1) = 0.3, inverse.at(1, 2) = 1;
+    inverse.at(2, 0) = 0.2, inverse.at(2, 1) = -0.3, inverse.at(2, 2) = 0;
+
+    std::cout << "Inverse/Determinant/Adjoint/Cofactor (" <<
+          ((matrix == inverse) ? "PASS" : "FAIL") << ")" << std::endl;
+
+    // Testing adding matrices
+    MatrixManipulator::getInstance()->add<float>(&matrix, &inverse);
+
+    Matrix<float> addition(3, 3);
+    addition.at(0, 0) = 0.4, addition.at(0, 1) = 0.4, addition.at(0, 2) = 0;
+    addition.at(1, 0) = -0.4, addition.at(1, 1) = 0.6, addition.at(1, 2) = 2;
+    addition.at(2, 0) = 0.4, addition.at(2, 1) = -0.6, addition.at(2, 2) = 0;
+
+    std::cout << "Matrix Addition (" <<
+         ((matrix == addition) ? "PASS" : "FAIL") << ")" << std::endl;
+
+    // Testing subtracting matrices
+    Matrix<float> empty(3, 3);
+    MatrixManipulator::getInstance()->subtract<float>(&matrix, &addition);
+
+    std::cout << "Matrix Subtraction (" <<
+        ((matrix == empty) ? "PASS" : "FAIL") << ")" << std::endl;
+
+    // Testing multiplying matrices
+    Matrix<float> resMult(2, 2);
+    Matrix<float> aMatrix(2, 3);
+    aMatrix.at(0, 0) = 1, aMatrix.at(0, 1) = 2, aMatrix.at(0, 2) = 3;
+    aMatrix.at(1, 0) = 4, aMatrix.at(1, 1) = 5, aMatrix.at(1, 2) = 6;
+
+    Matrix<float> bMatrix(3, 2);
+    bMatrix.at(0, 0) = 7, bMatrix.at(0, 1) = 8;
+    bMatrix.at(1, 0) = 9, bMatrix.at(1, 1) = 10;
+    bMatrix.at(2, 0) = 11, bMatrix.at(2, 1) = 12;
+
+    Matrix<float> testMat(2, 2);
+    testMat.at(0, 0) = 58, testMat.at(0, 1) = 64;
+    testMat.at(1, 0) = 139, testMat.at(1, 1) = 154;
+
+    MatrixManipulator::getInstance()->multiply(&resMult, &aMatrix, &bMatrix);
+
+    std::cout << "Matrix Multiplication (" <<
+        ((resMult == testMat) ? "PASS" : "FAIL") << ")" << std::endl;
+
 }
 

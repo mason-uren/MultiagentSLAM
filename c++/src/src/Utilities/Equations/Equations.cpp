@@ -43,3 +43,13 @@ float Equations::straightAvg(const std::vector<float> &toAvg) {
     }
     return total / toAvg.size();
 }
+
+float Equations::dotProduct(const std::vector<float> *vec_1, const std::vector<float> *vec_2) {
+    float dotProduct = 0;
+    if (vec_1 && vec_2) {
+        for (unsigned long i = 0; i < vec_1->size(); i++) {
+            dotProduct += (*vec_1)[i] * (*vec_2)[i];
+        }
+    }
+    return dotProduct;
+}
