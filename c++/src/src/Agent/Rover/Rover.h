@@ -61,6 +61,9 @@ public:
     RedBlackTree *getLocalMap() {
         return &(*localMap);
     }
+    Detection *getDetections() {
+        return &(*detection);
+    }
 
 private:
     void setName(std::string name) override;

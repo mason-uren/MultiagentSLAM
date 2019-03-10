@@ -21,6 +21,7 @@ void testTransformations();
 void testMoments();
 void testEquations();
 void testRedBlackTree();
+void testDetections();
 
 std::shared_ptr<SharedMemory> sharedMemory;
 std::shared_ptr<ConfigParser> configParser;
@@ -47,6 +48,7 @@ int main() {
 //    testMoments();
 //    testEquations();
 //    testRedBlackTree();
+    testDetections();
 
     return 0;
 }
@@ -295,5 +297,20 @@ void testRedBlackTree() {
     // Reset Tree
     (*rover.getLocalMap()).resetTree();
     std::cout << "Reset Tree ("  << ((*rover.getLocalMap()->getRoot()) ? "FAIL" : "PASS") << ")" << std::endl;
+}
+
+void testDetections() {
+    std::array<SONAR, 3> sampleSonar {
+        SONAR{.id = sonar_id::LEFT, .observedRange = -1},
+        SONAR{.id = sonar_id::CENTER, .observedRange = 1},
+        SONAR{.id = sonar_id ::RIGHT, .observedRange = 1}
+    };
+
+    Rover rover = Rover();
+    if (ActiveRovers::getInstance()->getRoverByName("achilles", rover)) {
+        rover.getDetections()->MLIncidentRay(sampleSonar);
+        std::cout << "Detection : " << rover.getDetections()->hasIncidentRay() << std::endl;
+        RAY *ray = rover.getDetections()->getIncidentRay();
+    }
 }
 
