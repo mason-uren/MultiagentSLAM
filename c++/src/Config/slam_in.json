@@ -2,6 +2,7 @@
   "slamConfig" : {
     "numberOfRovers" : 6,
     "filterSize" : 64,
+    "maxFeatures" : 256,
     "rovers" : [
       {
         "live" : true,
@@ -12,8 +13,10 @@
           "sonarRangeInM" : 3.0
         },
         "seif" : {
-          "maxActiveFeatures" : 8,
-          "maxFeatures" : 256
+          "maxActiveFeatures" : 8
+        },
+        "localMap" : {
+          "featureSetML" : 0.9
         }
       },
       {

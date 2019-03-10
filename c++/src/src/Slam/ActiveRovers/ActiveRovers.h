@@ -17,19 +17,18 @@ public:
         return &instance;
     }
 
-    void addRover(RoverInterface &rover);
-    bool getRoverByName(const std::string &name, Rover *rover);
-    bool getRoverByID(const int &id, Rover *rover);
-    std::unordered_map<std::string, RoverInterface *> *getActiveRovers();
+    void addRover(Rover &rover);
+    bool getRoverByName(const std::string &name, Rover &rover);
+    bool getRoverByID(const int &id, Rover &rover);
+    std::unordered_map<std::string, Rover *> *getActiveRovers();
 
 private:
     ActiveRovers() :
-            active(std::shared_ptr<std::unordered_map<std::string, RoverInterface *>>(
-                    new std::unordered_map<std::string, RoverInterface *>())) {}
+            active(new std::unordered_map<std::string, Rover *>()) {}
     ActiveRovers(ActiveRovers const&);
     void operator=(ActiveRovers const&);
 
-    std::shared_ptr<std::unordered_map<std::string, RoverInterface *>> active;
+    std::shared_ptr<std::unordered_map<std::string, Rover *>> active;
 };
 
 

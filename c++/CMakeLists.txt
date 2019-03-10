@@ -35,6 +35,8 @@ set(
         ${DIR_MACRO}Slam/SEIF/Seif.cpp
         ${DIR_MACRO}Slam/SlamAdapter/SlamAdapter.cpp
         ${DIR_MACRO}Utilities/ConfigParser/ConfigParser.cpp
+        ${DIR_MACRO}Utilities/Equations/Equations.cpp
+        ${DIR_MACRO}Utilities/BinaryTree/RedBlackTree.cpp
 )
 
 
@@ -47,6 +49,10 @@ target_include_directories(MultiAgentSLAM
         PRIVATE src/lib/nholmann_json/include
         PRIVATE src/lib/shared_structs/include
         PRIVATE src/lib/interfaces/include
+)
+
+target_link_libraries(
+        MultiAgentSLAM LINK_PUBLIC ${Boost_libraries}
 )
 
 

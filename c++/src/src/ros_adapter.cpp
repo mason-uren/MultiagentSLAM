@@ -7,6 +7,7 @@
 #include "Slam/SlamAdapter/SlamAdapter.h"
 #include "Utilities/Filters/MeanFilter.h"
 #include "Utilities/Filters/VarianceFilter.h"
+#include "Utilities/Equations/Equations.h"
 
 void loadDefaultConfig();
 void jsonInitialize();
@@ -18,6 +19,8 @@ void testVarianceFilter();
 void testFIRFilter();
 void testTransformations();
 void testMoments();
+void testEquations();
+void testRedBlackTree();
 
 std::shared_ptr<SharedMemory> sharedMemory;
 std::shared_ptr<ConfigParser> configParser;
@@ -40,8 +43,10 @@ int main() {
 //    testMeanFilter();
 //    testVarianceFilter();
 //    testFIRFilter();
-    testTransformations();
-    testMoments();
+//    testTransformations();
+//    testMoments();
+//    testEquations();
+//    testRedBlackTree();
 
     return 0;
 }
@@ -49,7 +54,7 @@ int main() {
 void loadDefaultConfig() {
     json jsonFileConfig;
 
-    // Working directory set at 'src' (root)
+    // Working directory valid at 'src' (root)
     std::string filePath = "Config/slam_in.json";
 
     if (!configParser->loadJSONFromFile(filePath, &jsonFileConfig)) {
@@ -75,6 +80,9 @@ void jsonInitialize() {
 
     SlamAdapter::getInstance();
     ActiveRovers::getInstance();
+    Equations::getInstance();
+    Moments::getInstance();
+
 
     // TODO : 'callbacks' will need to be setup before becoming active
 
@@ -107,7 +115,7 @@ void jsonInitialize() {
  * Testing Functions
  */
 void printActiveRovers() {
-    std::unordered_map<std::string, RoverInterface *> rovers = *ActiveRovers::getInstance()->getActiveRovers();
+    std::unordered_map<std::string, Rover *> rovers = *ActiveRovers::getInstance()->getActiveRovers();
     for (auto &rover : rovers) {
         std::cout << "Rover" << std::endl;
         std::cout << "Name : " << rover.second->getName() << std::endl;
@@ -190,10 +198,102 @@ void testTransformations() {
 }
 
 void testMoments() {
-    Moments *moments = new Moments();
-    std::array<VarianceFilter<float> *, 3> *var = moments->getVariances();
-    std::array<MeanFilter<float> *, 3> *means = moments->getMeans();
+    std::array<VarianceFilter<float> *, 3> *var = Moments::getInstance()->getVariances();
+    std::array<MeanFilter<float> *, 3> *means = Moments::getInstance()->getMeans();
     std::array<std::string, 3> rovers_names {"achilles", "aeneas", "ajax"};
 
+}
+
+void testEquations() {
+    // Origin to Point
+    std::array<float, 2> ray {5, 1.0472};
+    std::array<float, 3> pose{2, 1, 0};
+    std::array<float, 2> pt = Equations::getInstance()->originToPoint(ray, pose);
+    std::cout << "Origin to pt. (" << (((pt[0] > 6.3 && pt[0] < 6.4) && (pt[1] > 3.48 && pt[1] < 3.5)) ? "PASS" : "FAIL") << ")" << std::endl;
+
+    // Wrapping theta
+    double rad =  M_PI + M_PI_2;
+    float val = Equations::getInstance()->wrapTheta(rad);
+    std::cout << "Wrapping (" << (val > -1.58 && val < -1.56 ? "PASS" : "FAIL") << ")" << std::endl;
+
+    // Normalize Value
+    float norm = Equations::getInstance()->normalizeValue(3, 0, 10);
+    std::cout << "Norm (" << ((norm > 0.29 && norm < 0.31) ? "PASS" : "FAIL") << ")" << std::endl;
+
+    // Centroid
+    std::array<std::array<float, 2>, 3> pairs = {};
+    pairs.at(0) = {0, 0};
+    pairs.at(1) = {3, 0};
+    pairs.at(2) = {3, 4};
+    std::array<float, 2> result = Equations::getInstance()->centroid(pairs);
+    std::cout << "Centroid (" << ((result[0] == 2 && result[1] < 1.4 && result[1] > 1.2) ? "PASS" : "FAIL") << ")" <<std::endl;
+
+    // Cantor
+    std::cout << "Cantor (" <<
+        ((Equations::getInstance()->cantor(1, -3) == Equations::getInstance()->cantor(-1, -3)) ?
+        "FAIL" : "PASS") << ")" << std::endl;
+}
+
+void testRedBlackTree() {
+    Rover rover = Rover();
+    std::vector<double> sampleSignatures {
+        1, 2.0, -3, 4, -5, -10.33, 11.5, -50.7, 7, -6
+    };
+    CLASSIFIER dummyClassifier {.area = 5, .orientation = 12.5, .signature = 11};
+    std::vector<CLASSIFIER> sampleClassifiers {
+        CLASSIFIER(),
+        CLASSIFIER(),
+        CLASSIFIER(),
+        CLASSIFIER(),
+        CLASSIFIER(),
+
+        CLASSIFIER(),
+        CLASSIFIER{.area = 5, .orientation = 12, .signature = 11.5},
+        CLASSIFIER(),
+        CLASSIFIER(),
+        CLASSIFIER(),
+    };
+    std::array<FEATURE, 3> sampleFeatures {
+        FEATURE{.xRelative = 0.3, .yRelative = 1.57, .incidentRay = 3.14},
+        FEATURE(),
+        FEATURE()
+    };
+
+    for (int i = 0; i < sampleClassifiers.size(); i++) {
+        sampleClassifiers[i].signature = (float) sampleSignatures[i];
+    }
+
+    // Create tree
+    if (ActiveRovers::getInstance()->getRoverByName("achilles", rover)) {
+        for (auto classifier : sampleClassifiers) {
+            (*rover.getLocalMap()).addToTree(classifier, sampleFeatures);
+        }
+    }
+
+    // Check if tree is balanced
+    std::cout << "Root : " << *(*rover.getLocalMap()).getRoot() << std::endl;
+    (*rover.getLocalMap()).printTree(new NODE_PTR{.valid = true, .node_ptr = *(*rover.getLocalMap()).getRoot()}, 0);
+
+    // Check ML classifier (looking for like features)
+    unsigned long index = 0;
+    (*rover.getLocalMap()).findMLClassifier(dummyClassifier, index);
+    std::cout << "Find Classifier (" << ((index == 6) ? "PASS" : "FAIL") << ")" << std::endl;
+
+    // Get features from node
+    std::array<FEATURE, 3> featuresToPop {
+        FEATURE(),
+        FEATURE(),
+        FEATURE(),
+    };
+    rover.getLocalMap()->getFeaturesFromNode(featuresToPop, index);
+
+    featuresToPop[0].xRelative = -1.2;
+    std::cout << "Get features from node (" <<
+        ((featuresToPop[0].incidentRay == sampleFeatures[0].incidentRay && sampleFeatures[0].xRelative != -1.2) ?
+        "PASS" : "FAIL") << ")" << std::endl;
+
+    // Reset Tree
+    (*rover.getLocalMap()).resetTree();
+    std::cout << "Reset Tree ("  << ((*rover.getLocalMap()->getRoot()) ? "FAIL" : "PASS") << ")" << std::endl;
 }
 

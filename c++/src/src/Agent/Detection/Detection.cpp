@@ -4,8 +4,6 @@
 
 #include "Detection.h"
 
-Detection::~Detection() = default;
-
 // TODO
 bool Detection::hasIncidentRay() {
     return false;
