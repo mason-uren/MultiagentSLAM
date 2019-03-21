@@ -6,10 +6,12 @@
 
 // RAY - range (0) angle (1)
 // POSE - x (0) y (1) theta (2)
-std::array<float, 2> Equations::originToPoint(const std::array<float, 2> &ray, const std::array<float, 3> &pose) {
+std::array<float, 2> Equations::originToPoint(const RAY &ray,
+        const std::array<float, 3> &pose,
+        const bool &orthogonal) {
     return {
-            (ray[RANGE] * sin(pose[THETA] + ray[ANGLE]) + pose[X]),
-            (ray[RANGE] * cos(pose[THETA] + ray[ANGLE]) + pose[Y])
+            (ray.range * sin(pose[THETA] + ray.range) + (orthogonal ? pose[Y] : pose[X])),
+            (ray.range * cos(pose[THETA] + ray.range) + (orthogonal ? pose[X] : pose[Y]))
     };
 }
 
@@ -42,4 +44,18 @@ float Equations::straightAvg(const std::vector<float> &toAvg) {
         total += value;
     }
     return total / toAvg.size();
+}
+
+float Equations::dotProduct(const std::vector<float> *vec_1, const std::vector<float> *vec_2) {
+    float dotProduct = 0;
+    if (vec_1 && vec_2) {
+        for (unsigned long i = 0; i < vec_1->size(); i++) {
+            dotProduct += (*vec_1)[i] * (*vec_2)[i];
+        }
+    }
+    return dotProduct;
+}
+
+float Equations::distBetweenPts(const POSE &pose, const POSE &other) {
+    return hypot(abs(pose.x - other.x), abs(pose.y - other.y));
 }

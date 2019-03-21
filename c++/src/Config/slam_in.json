@@ -2,22 +2,25 @@
   "slamConfig" : {
     "numberOfRovers" : 6,
     "filterSize" : 64,
-    "maxFeatures" : 256,
+    "maxFeatures" : 2,
+    "detection" : {
+      "highDetectionBoundaryInM" : 2.5,
+      "sonarCoverageInRad" : 1.74,
+      "sonarRangeInM" : 3.0
+    },
+    "seif" : {
+      "maxActiveFeatures" : 1,
+      "featureDistInM" : 0.5,
+      "R" : 100,
+      "Q" : 1
+    },
+    "localMap" : {
+      "featureSetML" : 0.9
+    },
     "rovers" : [
       {
         "live" : true,
-        "name" : "achilles",
-        "detection" : {
-          "highDetectionBoundaryInM" : 2.5,
-          "sonarCoverageInRad" : 1.74,
-          "sonarRangeInM" : 3.0
-        },
-        "seif" : {
-          "maxActiveFeatures" : 8
-        },
-        "localMap" : {
-          "featureSetML" : 0.9
-        }
+        "name" : "achilles"
       },
       {
         "live" : false,

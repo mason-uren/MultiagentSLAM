@@ -4,10 +4,11 @@
 
 #include "Moments.h"
 
-std::array<MeanFilter<float> *, 3> *Moments::getMeans() {
-    return &this->means;
+
+STATS *Moments::getMotion() {
+    return &(*this->motion);
 }
 
-std::array<VarianceFilter<float> *, 3> *Moments::getVariances() {
-    return &this->variances;
+STATS *Moments::getMeasurement() {
+    return &(*this->measurement);
 }

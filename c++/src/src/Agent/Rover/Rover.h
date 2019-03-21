@@ -9,6 +9,7 @@
 #ifndef C_ROVER_H
 #define C_ROVER_H
 
+#define BOOST_ALLOW_DEPRECATED_HEADERS
 
 #include <functional>
 #include <SLAMConfigIn.h>
@@ -27,7 +28,7 @@ public:
         ID(boost::uuids::random_generator()()),
         name(std::move(name)),
         confidence(1.0),
-        pose(std::shared_ptr<POSE>(new POSE {.x = 0, .y = 0, .theta = 0}))
+        pose(new POSE {.x = 0, .y = 0, .theta = 0})
     {}
 
     explicit Rover(ROVER_CONFIG *roverConfig) :
@@ -35,10 +36,11 @@ public:
         name(roverConfig->name),
         confidence(1.0),
         pose(new POSE {.x = 0, .y = 0, .theta = 0}),
-        vel(new VELOCITY {.linear = 0, .angular = 0}),
-        seif(new Seif(&roverConfig->seifConfig)),
-        detection(new Detection(&roverConfig->detectionConfig)),
-        localMap(new RedBlackTree(&roverConfig->localMapConfig))
+        vel(new VELOCITY {.linear = 0, .angular = 0})
+//        ,
+//        seif(new Seif(&roverConfig->seifConfig)),
+//        detection(new Detection(&roverConfig->detectionConfig)),
+//        localMap(new RedBlackTree(&roverConfig->localMapConfig))
     {}
 
     ~Rover() override = default;
@@ -48,6 +50,11 @@ public:
     POSE *getCurrentPose() const override;
     VELOCITY *getVelocity() const override;
     float getConfidence() const override;
+
+    // Allocate Memory, should only be used during initialization.
+    void addSeif(Seif *seif);
+    void addDetection(Detection *detection);
+    void addLocalMap(RedBlackTree *localMap);
 
     void connectTransformationCallbacks(std::array<TransformationCallback, 2> &callbacks);
     void updatePoseVel(const POSE &pose, VELOCITY velocity);

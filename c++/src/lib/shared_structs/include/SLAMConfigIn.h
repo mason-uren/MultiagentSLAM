@@ -12,20 +12,23 @@
  */
 
 typedef struct {
-    bool valid;
-    int maxActiveFeatures;
-    unsigned long maxFeatures;
+    bool valid{};
+    int maxActiveFeatures{};
+    unsigned long maxFeatures{};
+    float featureDistInM{};
+    float R{};
+    float Q{};
 } SEIF_CONFIG;
 
 typedef struct {
-    bool valid;
-    float highDetectionBoundaryInM;
-    float sonarCoverageInRad;
-    float sonarRangeInM;
+    bool valid{};
+    float highDetectionBoundaryInM{};
+    float sonarCoverageInRad{};
+    float sonarRangeInM{};
 } DETECTION_CONFIG;
 
 typedef struct {
-    bool valid;
+    bool valid{};
     float featureSetML{};
     unsigned long maxFeatures{};
 } LOCAL_MAP_CONFIG;
@@ -35,9 +38,6 @@ typedef struct {
     bool live{};
     int ID{};
     std::string name;
-    LOCAL_MAP_CONFIG localMapConfig;
-    DETECTION_CONFIG detectionConfig;
-    SEIF_CONFIG seifConfig;
 } ROVER_CONFIG;
 
 typedef struct {
@@ -45,11 +45,14 @@ typedef struct {
     int numberOfRovers{};
     int filterSize{};
     unsigned long maxFeatures{};
+    LOCAL_MAP_CONFIG localMapConfig{};
+    DETECTION_CONFIG detectionConfig{};
+    SEIF_CONFIG seifConfig{};
     ROVER_CONFIG rovers[6];
 } SLAM_CONFIG;
 
 typedef struct {
-    SLAM_CONFIG slamConfig;
+    SLAM_CONFIG slamConfig{};
     size_t hash{};
 } JSON_CONFIG;
 
