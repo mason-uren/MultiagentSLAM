@@ -5,11 +5,10 @@
 #ifndef C_DETECTION_H
 #define C_DETECTION_H
 
-
-#include <SLAMConfigIn.h>
 #include <array>
-#include "../../../lib/interfaces/include/IncidentRayInterface.h"
-#include "../../Utilities/Filters/FIRFilter.h"
+#include <IncidentRayInterface.h>
+#include <SLAMConfigIn.h>
+#include <FIRFilter.h>
 
 typedef struct {
     float left[FILTER_LENGTH]{};

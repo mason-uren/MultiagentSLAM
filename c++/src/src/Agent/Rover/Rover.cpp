@@ -23,6 +23,24 @@ float Rover::getConfidence() const {
     return this->confidence;
 }
 
+void Rover::addSeif(Seif *seif) {
+    if (!this->seif) {
+        this->seif = std::shared_ptr<Seif>(seif);
+    }
+}
+
+void Rover::addDetection(Detection *detection) {
+    if (!this->detection) {
+        this->detection = std::shared_ptr<Detection>(detection);
+    }
+}
+
+void Rover::addLocalMap(RedBlackTree *localMap) {
+    if (!this->localMap) {
+        this->localMap = std::shared_ptr<RedBlackTree>(localMap);
+    }
+}
+
 // TODO
 void Rover::connectTransformationCallbacks(std::array<TransformationCallback, 2> &callbacks) {
 

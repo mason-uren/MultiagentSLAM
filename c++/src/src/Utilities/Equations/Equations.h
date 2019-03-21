@@ -25,6 +25,7 @@ public:
     std::array<float, 2> centroid(const std::array<std::array<float, 2>, 3> &coordinatePairs);
     float cantor(const float &val_1, const float &val_2);
     float straightAvg(const std::vector<float> &toAvg);
+    float dotProduct(const std::vector<float> *vec_1, const std::vector<float> *vec_2);
 
 private:
     Equations () = default;

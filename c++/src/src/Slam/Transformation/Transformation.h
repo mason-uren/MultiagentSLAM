@@ -9,7 +9,7 @@
 
 #include <vector>
 #include <SLAMConfigIn.h>
-#include "../../Utilities/Filters/FIRFilter.h"
+#include <FIRFilter.h>
 
 class Transformation {
 public:

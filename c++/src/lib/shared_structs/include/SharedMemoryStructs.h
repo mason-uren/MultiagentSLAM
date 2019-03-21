@@ -11,6 +11,8 @@
 #define RANGE_SENSOR_COUNT 3
 #define MAX_FEATURES_IN_SET 3
 #define MAX_AGENTS 6
+#define No_RAY_ELEMS 2
+#define No_POSE_ELEMS 3
 
 /**
  * Enumerations
@@ -25,10 +27,8 @@ enum class node_color {
 };
 
 enum class descriptor {
-    X = 0,
-    Y,
-    THETA,
-    FEAT
+    STATE_ESTIMATE = 0,
+    FOUND_FEATURE
 };
 
 enum class sonar_id {
@@ -37,23 +37,16 @@ enum class sonar_id {
     RIGHT
 };
 
+enum class obj_type {
+    UNDEFINED = 0,
+    LONG,
+    FLOAT,
+    OBJECT
+};
+
 /**
  * Structs
  */
-
-typedef struct {
-    float xRelative;
-    float yRelative;
-    float incidentRay;
-} FEATURE;
-
-typedef struct {
-    descriptor type;
-    union {
-        float poseComponent;
-        FEATURE feature;
-    };
-} ELEMENT;
 
 typedef struct {
     float area;
@@ -76,11 +69,26 @@ typedef struct {
     float angular;
 } VELOCITY;
 
+// IMPORTANT : must always exist at index 0, within information matrix/vector
 typedef struct {
     float x;
     float y;
     float theta;
 } POSE;
+
+typedef struct {
+    float xRelative;
+    float yRelative;
+    RAY incidentRay;
+} FEATURE;
+
+//typedef struct {
+//    descriptor type;
+//    union {
+//        POSE pose;
+//        FEATURE feature;
+//    };
+//} ELEMENT;
 
 typedef struct {
     JSON_CONFIG config;

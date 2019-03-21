@@ -32,6 +32,38 @@ void ConfigParser::parseConfig(SYS_CONFIG_IN *in, json *dataPtr) {
             slamConfig->filterSize = data["slamConfig"]["filterSize"].get<int>();
             slamConfig->maxFeatures = data["slamConfig"]["maxFeatures"].get<unsigned long>();
 
+            detectionConfig = &(slamConfig->detectionConfig);
+            if (!data["slamConfig"]["detection"].is_null()) {
+                detectionConfig->valid = true;
+                detectionConfig->highDetectionBoundaryInM =
+                        data["slamConfig"]["detection"]["highDetectionBoundaryInM"].get<float>();
+                detectionConfig->sonarCoverageInRad =
+                        data["slamConfig"]["detection"]["sonarCoverageInRad"].get<float>();
+                detectionConfig->sonarRangeInM =
+                        data["slamConfig"]["detection"]["sonarRangeInM"].get<float>();
+            }
+            else {
+                detectionConfig->valid = false;
+            }
+            seifConfig = &(slamConfig->seifConfig);
+            if (!data["slamConfig"]["seif"].is_null()) {
+                seifConfig->valid = true;
+                seifConfig->maxActiveFeatures =
+                        data["slamConfig"]["seif"]["maxActiveFeatures"].get<int>();
+                seifConfig->maxFeatures = slamConfig->maxFeatures;
+            }
+            else {
+                seifConfig->valid = false;
+            }
+            localMapConfig = &(slamConfig->localMapConfig);
+            if (!data["slamConfig"]["localMap"].is_null()) {
+                localMapConfig->valid = true;
+                localMapConfig->featureSetML = data["slamConfig"]["localMap"]["featureSetML"].get<float>();
+                localMapConfig->maxFeatures = slamConfig->maxFeatures;
+            }
+            else {
+                localMapConfig->valid = false;
+            }
             for (unsigned int rover_id = 0; rover_id < slamConfig->numberOfRovers; rover_id++) {
                 roversConfig = &(slamConfig->rovers[rover_id]);
                 if (!data["slamConfig"]["rovers"][rover_id].is_null()) {
@@ -39,42 +71,43 @@ void ConfigParser::parseConfig(SYS_CONFIG_IN *in, json *dataPtr) {
 //                    roversConfig->ID = data["Slam"]["Rovers"][rover_id]["ID"].get<int>();
                     roversConfig->name = data["slamConfig"]["rovers"][rover_id]["name"].get<std::string>();
                     roversConfig->live = data["slamConfig"]["rovers"][rover_id]["live"].get<bool>();
-                    if (roversConfig->live) {
-                        detectionConfig = &(roversConfig[rover_id].detectionConfig);
-                        if (!data["slamConfig"]["rovers"][rover_id]["detection"].is_null()) {
-                            detectionConfig->valid = true;
-                            detectionConfig->highDetectionBoundaryInM =
-                                    data["slamConfig"]["rovers"][rover_id]["detection"]["highDetectionBoundaryInM"].get<float>();
-                            detectionConfig->sonarCoverageInRad =
-                                    data["slamConfig"]["rovers"][rover_id]["detection"]["sonarCoverageInRad"].get<float>();
-                            detectionConfig->sonarRangeInM =
-                                    data["slamConfig"]["rovers"][rover_id]["detection"]["sonarRangeInM"].get<float>();
-                        }
-                        else {
-                            detectionConfig->valid = false;
-                        }
-                        seifConfig = &(roversConfig[rover_id].seifConfig);
-                        if (!data["slamConfig"]["rovers"][rover_id]["seif"].is_null()) {
-                            seifConfig->valid = true;
-                            seifConfig->maxActiveFeatures =
-                                    data["slamConfig"]["rovers"][rover_id]["seif"]["maxActiveFeatures"].get<int>();
-                            seifConfig->maxFeatures = slamConfig->maxFeatures;
-//                            seifConfig->maxFeatures =
-//                                    data["slamConfig"]["rovers"][rover_id]["seif"]["maxFeatures"].get<long>();
-                        }
-                        else {
-                            seifConfig->valid = false;
-                        }
-                        localMapConfig = &(roversConfig[rover_id].localMapConfig);
-                        if (!data["slamConfig"]["rovers"][rover_id]["localMap"].is_null()) {
-                            localMapConfig->valid = true;
-                            localMapConfig->featureSetML = data["slamConfig"]["rovers"][rover_id]["localMap"]["featureSetML"].get<float>();
-                            localMapConfig->maxFeatures = slamConfig->maxFeatures;
-                        }
-                        else {
-                            localMapConfig->valid = false;
-                        }
-                    }
+
+//                    if (roversConfig->live) {
+//                        detectionConfig = &(roversConfig[rover_id].detectionConfig);
+//                        if (!data["slamConfig"]["rovers"][rover_id]["detection"].is_null()) {
+//                            detectionConfig->valid = true;
+//                            detectionConfig->highDetectionBoundaryInM =
+//                                    data["slamConfig"]["rovers"][rover_id]["detection"]["highDetectionBoundaryInM"].get<float>();
+//                            detectionConfig->sonarCoverageInRad =
+//                                    data["slamConfig"]["rovers"][rover_id]["detection"]["sonarCoverageInRad"].get<float>();
+//                            detectionConfig->sonarRangeInM =
+//                                    data["slamConfig"]["rovers"][rover_id]["detection"]["sonarRangeInM"].get<float>();
+//                        }
+//                        else {
+//                            detectionConfig->valid = false;
+//                        }
+//                        seifConfig = &(roversConfig[rover_id].seifConfig);
+//                        if (!data["slamConfig"]["rovers"][rover_id]["seif"].is_null()) {
+//                            seifConfig->valid = true;
+//                            seifConfig->maxActiveFeatures =
+//                                    data["slamConfig"]["rovers"][rover_id]["seif"]["maxActiveFeatures"].get<int>();
+//                            seifConfig->maxFeatures = slamConfig->maxFeatures;
+////                            seifConfig->maxFeatures =
+////                                    data["slamConfig"]["rovers"][rover_id]["seif"]["maxFeatures"].get<long>();
+//                        }
+//                        else {
+//                            seifConfig->valid = false;
+//                        }
+//                        localMapConfig = &(roversConfig[rover_id].localMapConfig);
+//                        if (!data["slamConfig"]["rovers"][rover_id]["localMap"].is_null()) {
+//                            localMapConfig->valid = true;
+//                            localMapConfig->featureSetML = data["slamConfig"]["rovers"][rover_id]["localMap"]["featureSetML"].get<float>();
+//                            localMapConfig->maxFeatures = slamConfig->maxFeatures;
+//                        }
+//                        else {
+//                            localMapConfig->valid = false;
+//                        }
+//                    }
                 }
                 else {
                     roversConfig->valid = false;

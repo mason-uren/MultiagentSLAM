@@ -10,8 +10,8 @@
 #include <sstream>
 #include <array>
 
-#include "../../Utilities/Filters/MeanFilter.h"
-#include "../../Utilities/Filters/VarianceFilter.h"
+#include <MeanFilter.h>
+#include <VarianceFilter.h>
 
 class Moments {
 public:

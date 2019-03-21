@@ -5,6 +5,8 @@ project(MultiAgentSLAM VERSION 0.1 LANGUAGES CXX)
 add_subdirectory(src/lib/nholmann_json)
 add_subdirectory(src/lib/shared_structs)
 add_subdirectory(src/lib/interfaces)
+add_subdirectory(src/lib/templates)
+add_subdirectory(src/lib/tools)
 
 set(CMAKE_CXX_STANDARD 14)
 
@@ -49,6 +51,10 @@ target_include_directories(MultiAgentSLAM
         PRIVATE src/lib/nholmann_json/include
         PRIVATE src/lib/shared_structs/include
         PRIVATE src/lib/interfaces/include
+        PRIVATE src/lib/templates/include/Filters
+        PRIAVTE src/lib/templates/include/Matrix
+        PRIVATE src/lib/templates/include/MatrixManipulator
+        PRIVATE src/lib/tools/include
 )
 
 target_link_libraries(
