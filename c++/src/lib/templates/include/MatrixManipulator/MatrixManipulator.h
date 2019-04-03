@@ -12,7 +12,6 @@
 
 #include <Matrix.h>
 #include <SharedMemoryStructs.h>
-//#include <Tools.h>
 
 #include "../../../../src/Utilities/Equations/Equations.h"
 

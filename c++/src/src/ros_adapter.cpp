@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <sstream>
+#include <cmath>
 #include <Eigen/Dense>
 
 
@@ -259,9 +260,11 @@ void testEquations() {
     std::cout << "Origin to pt. (" << ((abs(pt[0] - 5) < 0.1 && abs(pt[1] - 5) < 5) ? "PASS" : "FAIL") << ")" << std::endl;
 
     // Wrapping theta
-    double rad =  M_PI + M_PI_2;
-    float val = Equations::getInstance()->wrapTheta(rad);
-    std::cout << "Wrapping (" << (val > -1.58 && val < -1.56 ? "PASS" : "FAIL") << ")" << std::endl;
+    double largeRad =  M_PI + M_PI_2;
+    double smallRad = M_PI_2;
+    float largeWrap = Equations::getInstance()->wrapTheta(largeRad);
+    float smallWrap = Equations::getInstance()->wrapTheta(smallRad);
+    std::cout << "Wrapping (" << ((fabs(largeWrap) - 1.58) < 0.1 && (M_PI_2 - fabs(smallWrap) < 0.1) ? "PASS" : "FAIL") << ")" << std::endl;
 
     // Normalize Value
     float norm = Equations::getInstance()->normalizeValue(3, 0, 10);
@@ -478,37 +481,77 @@ void testMatrixMan() {
 }
 
 void testSeif() {
-    // Test Pose and Velocity (necessary for motion-update)
-    POSE rPose{.x = 1, .y = 2, .theta = 0}; // unused
+    /*
+     * Goal: drive the rover in a figure 8
+     * Starting Pt: '^'
+     * OBJ: '#'
+     *      ___
+     *  #  |___|
+     *     |___|
+     *     ^
+     * Verify pose at each vertex.
+     */
+    POSE rPose;
+    std::vector<RAY> rays {
+            {.range = 1.3, .angle = (float) 0.57},
+            {.range = 1.3, .angle = (float) 0.0}
+    };
 
+    std::vector<VELOCITY> control {
+            {.linear = 0.3, .angular = 0}, // Drive Up
+            {.linear = 0, .angular = -1.57}, // Turn Right
+            {.linear = 0.3, .angular = 0}, // Drive Right
+            {.linear = 0, .angular = 1.57}, // Turn Up
+            {.linear = 0.3, .angular = 0}, // Drive Up
 
-    VELOCITY rVel = {.linear = 0.3, .angular = 0};
+            {.linear = 0, .angular = 1.57}, // Turn Left
+            {.linear = 0.3, .angular = 0}, // Drive Left
+            {.linear = 0, .angular = 1.57}, // Turn Down
+            {.linear = 0.3, .angular = 0}, // Drive Down
+            {.linear = 0, .angular = 1.57}, // Turn Left
 
-    // 10 is chosen since 10 (iters) * 0.1 sec/iter = 3m
-    for (int i = 0; i < 10r; i++) {
-        seif->motionUpdate(rVel);
-        seif->stateEstimateUpdate();
+            {.linear = 0.3, .angular = 0}, // Drive Right
+            {.linear = 0, .angular = -1.57}, // Turn Right
+            {.linear = 0.3, .angular = 0}, // Drive Down
+            {.linear = 0, .angular = -1.57}, // Turn Right
+            {.linear = 0.3, .angular = 0}, // Drive Left
 
-        // Test Measurements
-        RAY ray = {.range = 2.6, .angle = (float) -0.78};
-        if (ray.range < 2.5) {
-            seif->measurementUpdate(ray);
+            {.linear = 0, .angular = -1.57}, // Turn Right
+    };
+    std::cout << "Initial Pose: 0, 0, 0" << std::endl;
+    int j = 0;
+    for (VELOCITY velocity : control) {
+
+        for (int i = 0; i < 10; i++) {
+            seif->motionUpdate(velocity);
+            seif->stateEstimateUpdate();
+
+            // Test Measurements
+            if (j == 0) { // || j == 7) {
+                if (rays[j == 7 ? 1 : 0].range < 2.5) {
+                    seif->measurementUpdate(rays[j]);
+                }
+                float x = rays[j == 7 ? 1 : 0].range * sin(rays[j == 7 ? 1 : 0].angle);
+                float y = rays[j == 7 ? 1 : 0].range * cos(rays[j == 7 ? 1 : 0].angle);
+                float yp = y - velocity.linear;
+                float phi = atan2(x, yp);
+                float Rp = (float) sqrt(pow(x, 2) + pow(yp, 2));
+
+                rays[j == 7 ? 1 : 0].range = Rp;
+                rays[j == 7 ? 1 : 0].angle = phi;
+            }
+            seif->sparsification();
         }
-        seif->sparsification();
+        j++;
 
+        static bool isDriving = false;
+        std::cout << ((isDriving = !isDriving) ? "DRIVING -> " : "TURNING -> ");
         rPose = seif->getRoverPose();
-        float meanX = (*Moments::getInstance()->getMotion()).means[X]->onlineAverage(rPose.x);
-        float meanY = (*Moments::getInstance()->getMotion()).means[Y]->onlineAverage(rPose.y);
-        float meanTheta = (*Moments::getInstance()->getMotion()).means[THETA]->onlineAverage(rPose.theta);
-
-        (*Moments::getInstance()->getMotion()).variances[X]->onlineVariance(rPose.x, meanX);
-        (*Moments::getInstance()->getMotion()).variances[Y]->onlineVariance(rPose.x, meanY);
-        (*Moments::getInstance()->getMotion()).variances[THETA]->onlineVariance(rPose.x, meanTheta);
-
-        (*Moments::getInstance()->getMotion()).covariances[XY]->onlineCovariance(rPose.x, rPose.y, meanX, meanY);
-        (*Moments::getInstance()->getMotion()).covariances[XZ]->onlineCovariance(rPose.x, rPose.theta, meanX, meanTheta);
-        (*Moments::getInstance()->getMotion()).covariances[YZ]->onlineCovariance(rPose.y, rPose.theta, meanY, meanTheta);
+        std::cout << rPose.x << ", " << rPose.y << ", " << rPose.theta << std::endl;
     }
-    std::cout << rPose.x << ", " << rPose.y << ", " << rPose.theta << std::endl;
+    rPose = seif->getRoverPose();
+    std::cout << "Final Pose: " << rPose.x << ", " << rPose.y << ", " << rPose.theta << std::endl;
+
+    std::cout << "SEIF (" << ((fabs(rPose.x) < 0.01 && fabs(rPose.y) < 0.01 && fabs(rPose.theta) <0.01) ? "PASS" : "FAIL") << ")" << std::endl;
 }
 

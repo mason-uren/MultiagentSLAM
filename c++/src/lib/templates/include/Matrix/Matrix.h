@@ -75,7 +75,6 @@ private:
 
 template <typename T>
 bool Matrix<T>::operator==(const Matrix<T> &matrix) const {
-    Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> test = matrix.data;
     return data.isApprox(matrix.data);
 }
 

@@ -5,7 +5,14 @@
 #include "Seif.h"
 
 // IMPORTANT: should not be accessed/used outside of Seif
-static POSE rPose = POSE{};
+POSE Seif::rPose = POSE{};
+
+void Seif::printRoverPose() {
+    std::cout << "R-Pose : (" <<
+        Seif::rPose.x << ", " <<
+        Seif::rPose.y << ", " <<
+        Seif::rPose.theta << ")" << std::endl;
+}
 
 // TODO
 void Seif::connectFeatureCallback(FeatureCallback &callback) {
@@ -17,8 +24,6 @@ void Seif::motionUpdate(const VELOCITY &velocity) {
         std::cout << "F_X:" << std::endl;
         this->F_X->print();
     }
-
-//    this->initializeMean(velocity);
 
     this->updateDeltaDel(velocity);
     this->updatePsi();
@@ -34,9 +39,11 @@ POSE Seif::stateEstimateUpdate() {
     Matrix<float> stateEstimate = *this->stateEstimate;
     this->resolveActiveFeats();
     this->resolveAllFeats(&stateEstimate);
-    rPose = {.x = this->stateEstimate->at(X),
-             .y = this->stateEstimate->at(Y),
-             .theta = this->stateEstimate->at(THETA)};
+    rPose = {
+        .x = (Equations::getInstance()->isZero(this->stateEstimate->at(X))) ? 0 : this->stateEstimate->at(X),
+        .y = (Equations::getInstance()->isZero(this->stateEstimate->at(Y))) ? 0 : this->stateEstimate->at(Y),
+        .theta = Equations::getInstance()->wrapTheta(this->stateEstimate->at(THETA))
+    };
     return rPose;
 }
 
@@ -45,8 +52,6 @@ POSE Seif::stateEstimateUpdate() {
 void Seif::measurementUpdate(const RAY &incidentRay) {
     FEATURE feature{};
     this->remodel(feature, incidentRay);
-//    this->updateQ(incidentRay, feature.correspondence);
-
     if (!this->hasBeenObserved(feature.correspondence)) {
         this->addFeature(feature);
         this->organizeFeatures();
@@ -70,20 +75,6 @@ void Seif::sparsification() {
     this->updateInformationVector(&infoMat);
 }
 
-void Seif::initializeMean(const VELOCITY &velocity) {
-    static bool isSet = false;
-    if (!isSet) {
-        isSet = true;
-
-        float linAngRatio = (velocity.angular != 0) ? velocity.linear / velocity.angular : velocity.linear;
-        float thetaPrior = this->stateEstimate->at(THETA);
-
-        this->stateEstimate->at(X) = (float) ((-1) * linAngRatio * sin(thetaPrior) + linAngRatio * sin(thetaPrior + (velocity.angular * ROS_INTERVAL)));
-        this->stateEstimate->at(Y) = (float) (linAngRatio * cos(thetaPrior) - linAngRatio * cos(thetaPrior + (velocity.angular * ROS_INTERVAL)));
-        this->stateEstimate->at(THETA) = (float) (velocity.angular * ROS_INTERVAL);
-    }
-}
-
 void Seif::updateDeltaDel(const VELOCITY &velocity) {
     float ratio;
     float thetaPrior = this->stateEstimate->at(THETA);;
@@ -97,7 +88,7 @@ void Seif::updateDeltaDel(const VELOCITY &velocity) {
     }
     else {
         ratio = velocity.linear;
-        this->delta->at(X) = (float) (ratio * (-1) *sin(thetaPrior + (velocity.angular * ROS_INTERVAL)));
+        this->delta->at(X) = (float) (ratio * sin(thetaPrior + (velocity.angular * ROS_INTERVAL)));
         this->delta->at(Y) = (float) (ratio * cos(thetaPrior + (velocity.angular * ROS_INTERVAL)));
 
         this->del->at(X, 2) = (float) (ratio * cos(thetaPrior + (velocity.angular * ROS_INTERVAL)));
@@ -212,22 +203,6 @@ void Seif::updateMuBar() {
     }
 }
 
-//Matrix<float> Seif::motionCovError() {
-//    Matrix<float> cov(ELEMENT_SIZE, ELEMENT_SIZE);
-////    this->covMotionError->at(0, 0) = (*Moments::getInstance()->getMotion()).variances[X]->getFilteredVariance();
-////    this->covMotionError->at(1, 1) = (*Moments::getInstance()->getMotion()).variances[Y]->getFilteredVariance();
-////    this->covMotionError->at(2, 2) = (*Moments::getInstance()->getMotion()).variances[THETA]->getFilteredVariance();
-//
-//    // I think this may be wrong
-//    cov.at(0, 1) = (*Moments::getInstance()->getMotion()).covariances[XY]->getFilteredCovariance();
-//    cov.at(1, 0) = (*Moments::getInstance()->getMotion()).covariances[XY]->getFilteredCovariance();
-//    cov.at(0, 2) = (*Moments::getInstance()->getMotion()).covariances[XZ]->getFilteredCovariance();
-//    cov.at(2, 0) = (*Moments::getInstance()->getMotion()).covariances[XZ]->getFilteredCovariance();
-//    cov.at(1, 2) = (*Moments::getInstance()->getMotion()).covariances[YZ]->getFilteredCovariance();
-//    cov.at(2, 1) = (*Moments::getInstance()->getMotion()).covariances[YZ]->getFilteredCovariance();
-//    return cov;
-//}
-
 void Seif::resolveActiveFeats() {
     unsigned long startIdx;
     this->F_I->zeroMatrix();
@@ -291,28 +266,6 @@ void Seif::resolveAllFeats(const Matrix<float> *stateEstimate) {
     }
 }
 
-/**
- * @fn updateQ
- * @brief measurement covariance error
- * NOTE: not sure if we need to place RAY
- * @param incidentRay
- * @param correspondence
- */
-//void Seif::updateQ(const RAY &incidentRay, const float &correspondence) {
-//    this->Q->zeroMatrix();
-//    this->Q->at(0, 0) = (*Moments::getInstance()->getMeasurement()).variances[RANGE]->getFilteredVariance();
-//    this->Q->at(1, 1) = (*Moments::getInstance()->getMeasurement()).variances[ANGLE]->getFilteredVariance();
-//    this->Q->at(2, 2) = (*Moments::getInstance()->getMeasurement()).variances[CORRESPONDENCE]->getFilteredVariance();
-//
-//    // Pretty sure this is wrong
-////    this->Q->at(0, 1) = (*Moments::getInstance()->getMeasurement()).covariances[XY]->getFilteredCovariance();
-////    this->Q->at(1, 0) = (*Moments::getInstance()->getMeasurement()).covariances[XY]->getFilteredCovariance();
-////    this->Q->at(0, 2) = (*Moments::getInstance()->getMeasurement()).covariances[XZ]->getFilteredCovariance();
-////    this->Q->at(2, 0) = (*Moments::getInstance()->getMeasurement()).covariances[XZ]->getFilteredCovariance();
-////    this->Q->at(1, 2) = (*Moments::getInstance()->getMeasurement()).covariances[YZ]->getFilteredCovariance();
-////    this->Q->at(2, 1) = (*Moments::getInstance()->getMeasurement()).covariances[YZ]->getFilteredCovariance();
-//}
-
 void Seif::updateDeltaPos(const POSE &pose) {
     this->deltaPosition->at(X) = pose.x - rPose.x;
     this->deltaPosition->at(Y) = pose.y - rPose.y;
@@ -370,12 +323,15 @@ void Seif::updateOmega() {
 void Seif::remodel(FEATURE &feature, const RAY &incidentRay) {
     std::array<float, 2> xyCoords = Equations::getInstance()->originToPoint(
             incidentRay,
-            {(*this->stateEstimate).at(X), (*this->stateEstimate).at(Y), (*this->stateEstimate).at(THETA)},
-            true);
+            {rPose.x, rPose.y, rPose.theta},
+            false); // true
 
     feature.incidentRay = incidentRay;
     feature.pose = {.x = xyCoords[X], .y = xyCoords[Y]};
-    feature.correspondence = Equations::getInstance()->cantor(xyCoords[X], xyCoords[Y]);
+    feature.correspondence = Equations::getInstance()->normalizeValue(
+            Equations::getInstance()->cantor(xyCoords[X], xyCoords[Y]),
+            0, this->maxFeatures
+    );
 }
 
 /**
@@ -391,6 +347,12 @@ bool Seif::hasBeenObserved(const float &correspondence) {
     u_long front = 0;
     u_long back = this->featuresFound;
 
+    if (!this->featuresFound) {
+        return false;
+    }
+    if (this->featuresFound < 2) {
+        return EQUIV == comparison(correspondence, (*this->recordedFeatures)[front].correspondence);
+    }
     while(front <= back) {
         unsigned long position = (front && back) ? front + (back - 1) / 2 : 0;
         relation section = comparison(correspondence, (*this->recordedFeatures)[position].correspondence);
@@ -398,7 +360,7 @@ bool Seif::hasBeenObserved(const float &correspondence) {
             case EQUIV:
                 return true;
             case LOWER:
-                back = --position;
+                back = position ? --position : 0;
                 break;
             case HIGHER:
                 front = ++position;
@@ -412,16 +374,23 @@ bool Seif::hasBeenObserved(const float &correspondence) {
 }
 
 void Seif::addFeature(FEATURE &feature) {
-    u_long idx = this->featuresFound;
-    feature.idx = idx;
+    feature.idx = this->nextFeatureIndex();
+    u_long idx = feature.idx;
     if (this->isActiveFull()) {
         *this->toDeactivate = (*this->activeFeatures)[idx = 0]; // Keep the furthest away feature in the initial position;
     }
     (*this->activeFeatures)[idx] = feature;
-    (*this->recordedFeatures)[this->featuresFound++] = feature;
+    (*this->recordedFeatures)[this->nextFeatureIndex()++] = feature;
 
     // TODO: maybe should mark feature on info mat and vec
+}
 
+u_long &Seif::nextFeatureIndex() {
+    if (this->featuresFound < this->maxActiveFeatures) {
+        return this->featuresFound;
+    }
+    perror("Maximum number of features observed. Consider allowing more observed features : 'maxFeatures'.");
+    exit(EXIT_FAILURE);
 }
 
 void Seif::organizeFeatures() {

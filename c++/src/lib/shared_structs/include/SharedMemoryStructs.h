@@ -95,14 +95,6 @@ typedef struct {
     POSE pose{};
 } FEATURE;
 
-//typedef struct {
-//    descriptor type;
-//    union {
-//        POSE pose;
-//        FEATURE feature;
-//    };
-//} ELEMENT;
-
 typedef struct {
     JSON_CONFIG config;
     long block_id{};

@@ -44,6 +44,7 @@ public:
     STATS * getMotion();
     STATS * getMeasurement();
 
+
 private:
     Moments() :
             motion(new STATS{}),

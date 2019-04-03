@@ -36,6 +36,7 @@ public:
     explicit Seif(SEIF_CONFIG *seifConfig) :
         N(ELEMENT_SIZE + (ELEMENT_SIZE * seifConfig->maxFeatures)),
         featuresFound(0),
+        maxFeatures(seifConfig->maxFeatures),
         maxActiveFeatures(seifConfig->maxActiveFeatures),
         minFeatureDist(seifConfig->featureDistInM),
         recordedFeatures(new std::vector<FEATURE>(seifConfig->maxFeatures, FEATURE{})),
@@ -54,7 +55,6 @@ public:
         phi(new Matrix<float>(N, N)),
         kappa(new Matrix<float>(N, N)),
         F_I(new Matrix<float>((ELEMENT_SIZE - 1), N)),
-//        Q(new Matrix<float>(ELEMENT_SIZE, ELEMENT_SIZE)),
         deltaPosition(new Matrix<float>(ELEMENT_SIZE - 1)),
         q(0),
         zHat(new Matrix<float>(ELEMENT_SIZE)),
@@ -64,8 +64,7 @@ public:
             F_X->at(i, i) = 1;
             motionCov->at(i, i) = seifConfig->R;
             measurementCov->at(i, i) = seifConfig->Q;
-
-            // Pretty sure I don't need
+            // Need to mark <x, y, theta> as observed
             informationMatrix->at(i, i) = 1;
         }
     }
@@ -81,17 +80,14 @@ public:
 
     // For testing purposes only.
     POSE getRoverPose();
+    void printRoverPose();
 
 private:
     /*
      * Functions
      */
-//    float *roverPose();
-
     // For testing purposes only
-    bool printMatrices = true;
-
-    void initializeMean(const VELOCITY &velocity);
+    bool printMatrices = false;
 
     // Motion Update (func)
     void updateDeltaDel(const VELOCITY &velocity);
@@ -102,14 +98,12 @@ private:
     void updateOmegaBar();
     void updateEpsilonBar();
     void updateMuBar();
-//    Matrix<float> motionCovError();
 
     // State Estimate (func)
     void resolveActiveFeats();
     void resolveAllFeats(const Matrix<float> *stateEstimate);
 
     // Measurement Update (func)
-//    void updateQ(const RAY &incidentRay, const float &correspondence);
     void updateDeltaPos(const POSE &pose);
     void update_q();
     void updateZHat(const float &correspondence);
@@ -119,9 +113,11 @@ private:
     void remodel(FEATURE &feature, const RAY &incidentRay);
     bool hasBeenObserved(const float &correspondence);
     void addFeature(FEATURE &feature);
+    u_long &nextFeatureIndex();
     void organizeFeatures();
     relation comparison(const float &identifier, const float &otherID);
     bool isActiveFull();
+
 
     // Sparsification (func)
     void updateInformationMatrix();
@@ -143,8 +139,11 @@ private:
     /**
      * Variables
      */
+    static POSE rPose;
+
     const unsigned long N;
     unsigned long featuresFound;
+    unsigned long maxFeatures;
     int maxActiveFeatures;
     float minFeatureDist;
     std::shared_ptr<std::vector<FEATURE>> recordedFeatures;
@@ -173,7 +172,6 @@ private:
     std::shared_ptr<Matrix<float>> F_I;
 
     // Measurment (vars)
-//    std::shared_ptr<Matrix<float>> Q;
     std::shared_ptr<Matrix<float>> deltaPosition;
     float q;
     std::shared_ptr<Matrix<float>> zHat;
