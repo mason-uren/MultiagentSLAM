@@ -12,16 +12,19 @@
  */
 
 typedef struct {
-    bool valid;
-    int maxActiveFeatures;
-    unsigned long maxFeatures;
+    bool valid{};
+    int maxActiveFeatures{};
+    unsigned long maxFeatures{};
+    float featureDistInM{};
+    float R{};
+    float Q{};
 } SEIF_CONFIG;
 
 typedef struct {
-    bool valid;
-    float highDetectionBoundaryInM;
-    float sonarCoverageInRad;
-    float sonarRangeInM;
+    bool valid{};
+    float highDetectionBoundaryInM{};
+    float sonarCoverageInRad{};
+    float sonarRangeInM{};
 } DETECTION_CONFIG;
 
 typedef struct {

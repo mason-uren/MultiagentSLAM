@@ -20,10 +20,6 @@ void ConfigParser::parseConfig(SYS_CONFIG_IN *in, json *dataPtr) {
 
     config->hash = hasher(data);
 
-    /**
-     * TODO Doesn't necessary warrent returning too but 'config' structures might change.
-     */
-
     try {
         slamConfig = &config->slamConfig;
         if (!data["slamConfig"].is_null()) {
@@ -50,6 +46,9 @@ void ConfigParser::parseConfig(SYS_CONFIG_IN *in, json *dataPtr) {
                 seifConfig->valid = true;
                 seifConfig->maxActiveFeatures =
                         data["slamConfig"]["seif"]["maxActiveFeatures"].get<int>();
+                seifConfig->featureDistInM = data["slamConfig"]["seif"]["featureDistInM"].get<float>();
+                seifConfig->R = data["slamConfig"]["seif"]["R"].get<float>();
+                seifConfig->Q = data["slamConfig"]["seif"]["Q"].get<float>();
                 seifConfig->maxFeatures = slamConfig->maxFeatures;
             }
             else {
@@ -68,46 +67,8 @@ void ConfigParser::parseConfig(SYS_CONFIG_IN *in, json *dataPtr) {
                 roversConfig = &(slamConfig->rovers[rover_id]);
                 if (!data["slamConfig"]["rovers"][rover_id].is_null()) {
                     roversConfig->valid = true;
-//                    roversConfig->ID = data["Slam"]["Rovers"][rover_id]["ID"].get<int>();
                     roversConfig->name = data["slamConfig"]["rovers"][rover_id]["name"].get<std::string>();
                     roversConfig->live = data["slamConfig"]["rovers"][rover_id]["live"].get<bool>();
-
-//                    if (roversConfig->live) {
-//                        detectionConfig = &(roversConfig[rover_id].detectionConfig);
-//                        if (!data["slamConfig"]["rovers"][rover_id]["detection"].is_null()) {
-//                            detectionConfig->valid = true;
-//                            detectionConfig->highDetectionBoundaryInM =
-//                                    data["slamConfig"]["rovers"][rover_id]["detection"]["highDetectionBoundaryInM"].get<float>();
-//                            detectionConfig->sonarCoverageInRad =
-//                                    data["slamConfig"]["rovers"][rover_id]["detection"]["sonarCoverageInRad"].get<float>();
-//                            detectionConfig->sonarRangeInM =
-//                                    data["slamConfig"]["rovers"][rover_id]["detection"]["sonarRangeInM"].get<float>();
-//                        }
-//                        else {
-//                            detectionConfig->valid = false;
-//                        }
-//                        seifConfig = &(roversConfig[rover_id].seifConfig);
-//                        if (!data["slamConfig"]["rovers"][rover_id]["seif"].is_null()) {
-//                            seifConfig->valid = true;
-//                            seifConfig->maxActiveFeatures =
-//                                    data["slamConfig"]["rovers"][rover_id]["seif"]["maxActiveFeatures"].get<int>();
-//                            seifConfig->maxFeatures = slamConfig->maxFeatures;
-////                            seifConfig->maxFeatures =
-////                                    data["slamConfig"]["rovers"][rover_id]["seif"]["maxFeatures"].get<long>();
-//                        }
-//                        else {
-//                            seifConfig->valid = false;
-//                        }
-//                        localMapConfig = &(roversConfig[rover_id].localMapConfig);
-//                        if (!data["slamConfig"]["rovers"][rover_id]["localMap"].is_null()) {
-//                            localMapConfig->valid = true;
-//                            localMapConfig->featureSetML = data["slamConfig"]["rovers"][rover_id]["localMap"]["featureSetML"].get<float>();
-//                            localMapConfig->maxFeatures = slamConfig->maxFeatures;
-//                        }
-//                        else {
-//                            localMapConfig->valid = false;
-//                        }
-//                    }
                 }
                 else {
                     roversConfig->valid = false;

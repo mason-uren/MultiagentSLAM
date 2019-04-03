@@ -2,9 +2,13 @@
 
 #include <iostream>
 #include <sstream>
+#include <cmath>
+#include <Eigen/Dense>
+
 
 #include <MeanFilter.h>
 #include <VarianceFilter.h>
+#include <CovarianceFilter.h>
 #include <Matrix.h>
 #include <MatrixManipulator.h>
 
@@ -31,6 +35,7 @@ void testRedBlackTree();
 void testDetections();
 void testMatrix();
 void testMatrixMan();
+void testSeif();
 
 static std::shared_ptr<SharedMemory> sharedMemory;
 static std::shared_ptr<ConfigParser> configParser;
@@ -50,15 +55,15 @@ int main() {
 //    printActiveRovers();
 //    testMeanFilter();
 //    testVarianceFilter();
-//    testFIRFilter();f
+//    testFIRFilter();
 //    testTransformations();
 //    testMoments();
 //    testEquations();
 //    testRedBlackTree();
 //    testDetections();
 //    testMatrix();
-    testMatrixMan();
-
+//    testMatrixMan();
+    testSeif();
     return 0;
 }
 
@@ -108,24 +113,23 @@ void jsonInitialize() {
             ROVER_CONFIG roverConfig = slamConfig.rovers[rover_id];
             if (roverConfig.valid) {
                 roverConfig.ID = rover_id;
-                ActiveRovers::getInstance()->addRover(*RoverFactory::create(&roverConfig));
-                SlamAdapter::getInstance()->addTransformation(roverConfig.name, new Transformation());
-
+                Rover *rover = RoverFactory::create(&roverConfig);
                 DETECTION_CONFIG detectionConfig = slamConfig.detectionConfig;
                 SEIF_CONFIG seifConfig = slamConfig.seifConfig;
                 LOCAL_MAP_CONFIG localMapConfig = slamConfig.localMapConfig;
+
                 if (roverConfig.live &&
                     (detectionConfig.valid && seifConfig.valid && localMapConfig.valid)) {
                     detection = std::make_shared<Detection>(&detectionConfig);
                     seif = std::make_shared<Seif>(&seifConfig);
                     localMap = std::make_shared<RedBlackTree>(&localMapConfig);
-
-                    Rover *rover = new Rover();
-                    ActiveRovers::getInstance()->getRoverByName(roverConfig.name, *rover);
                     rover->addDetection(&(*detection));
                     rover->addSeif(&(*seif));
                     rover->addLocalMap(&(*localMap));
                 }
+
+                ActiveRovers::getInstance()->addRover(*rover);
+                SlamAdapter::getInstance()->addTransformation(roverConfig.name, new Transformation());
             }
         }
     }
@@ -143,7 +147,7 @@ void printActiveRovers() {
     for (auto &rover : rovers) {
         std::cout << "Rover" << std::endl;
         std::cout << "Name : " << rover.second->getName() << std::endl;
-        std::cout << "ID : " << rover.second->getID() << std::endl;
+        std::cout << "CORRESPONDENCE : " << rover.second->getID() << std::endl;
         std::cout << "Confidence : " << rover.second->getConfidence() << std::endl;
         std::cout << "Pose : x - " << rover.second->getCurrentPose()->x <<
             " y - " << rover.second->getCurrentPose()->y <<
@@ -186,7 +190,7 @@ void testVarianceFilter() {
     }
     expected /= vals.size();
     std::cout << "Variance Filter (" <<
-         ((expected == varianceFilter->getFilteredVariance()) ?
+         ((abs(expected - varianceFilter->getFilteredVariance()) < 0.1) ?
           "PASS" : "FAIL") <<
     ")" << std::endl;
 }
@@ -222,23 +226,45 @@ void testTransformations() {
 }
 
 void testMoments() {
-    std::array<VarianceFilter<float> *, 3> *var = Moments::getInstance()->getVariances();
-    std::array<MeanFilter<float> *, 3> *means = Moments::getInstance()->getMeans();
-    std::array<std::string, 3> rovers_names {"achilles", "aeneas", "ajax"};
+    std::array<MeanFilter<float> *, 3> means = (*Moments::getInstance()->getMotion()).means;
+    std::array<VarianceFilter<float> *, 3> var = (*Moments::getInstance()->getMotion()).variances;
+    std::array<CovarianceFilter<float> *, 3> covariances = (*Moments::getInstance()->getMotion()).covariances;;
 
+    std::vector<long> x_vals {1, 2, 3};
+    std::vector<long> y_vals {4, 5, 6};
+
+    for (size_t i = 0; i < 3; i++) {
+        means[X]->onlineAverage(x_vals[i]);
+        means[Y]->onlineAverage(y_vals[i]);
+        var[X]->onlineVariance(x_vals[i], means[X]->getFilteredValue());
+        var[Y]->onlineVariance(y_vals[i], means[Y]->getFilteredValue());
+        covariances[0]->onlineCovariance(x_vals[i], y_vals[i],
+                means[X]->getFilteredValue(), means[Y]->getFilteredValue());
+    }
+    std::cout << "Mean Filter: (" <<
+        ((means[X]->getFilteredValue() == 2 && means[Y]->getFilteredValue() == 5) ? "PASS" : "FAIL") <<
+        ")" << std::endl;
+    std::cout << "Variance Filter (" <<
+        ((var[X]->getFilteredVariance() > 0.6 && var[X]->getFilteredVariance() < 0.7) ? "PASS" : "FAIL") <<
+        ")" << std::endl;
+    std::cout << "Covariance Filter (" <<
+        ((covariances[0]->getFilteredCovariance() > 0.6 && covariances[0]->getFilteredCovariance() < 0.7) ? "PASS" : "FAIL") <<
+        ")" << std::endl;
 }
 
 void testEquations() {
     // Origin to Point
-    std::array<float, 2> ray {5, 1.0472};
+    RAY ray {.range = 5, .angle = 0.6435};
     std::array<float, 3> pose{2, 1, 0};
     std::array<float, 2> pt = Equations::getInstance()->originToPoint(ray, pose);
-    std::cout << "Origin to pt. (" << (((pt[0] > 6.3 && pt[0] < 6.4) && (pt[1] > 3.48 && pt[1] < 3.5)) ? "PASS" : "FAIL") << ")" << std::endl;
+    std::cout << "Origin to pt. (" << ((abs(pt[0] - 5) < 0.1 && abs(pt[1] - 5) < 5) ? "PASS" : "FAIL") << ")" << std::endl;
 
     // Wrapping theta
-    double rad =  M_PI + M_PI_2;
-    float val = Equations::getInstance()->wrapTheta(rad);
-    std::cout << "Wrapping (" << (val > -1.58 && val < -1.56 ? "PASS" : "FAIL") << ")" << std::endl;
+    double largeRad =  M_PI + M_PI_2;
+    double smallRad = M_PI_2;
+    float largeWrap = Equations::getInstance()->wrapTheta(largeRad);
+    float smallWrap = Equations::getInstance()->wrapTheta(smallRad);
+    std::cout << "Wrapping (" << ((fabs(largeWrap) - 1.58) < 0.1 && (M_PI_2 - fabs(smallWrap) < 0.1) ? "PASS" : "FAIL") << ")" << std::endl;
 
     // Normalize Value
     float norm = Equations::getInstance()->normalizeValue(3, 0, 10);
@@ -254,8 +280,15 @@ void testEquations() {
 
     // Cantor
     std::cout << "Cantor (" <<
-        ((Equations::getInstance()->cantor(1, -3) == Equations::getInstance()->cantor(-1, -3)) ?
+        ((Equations::getInstance()->cantor(1, -3) == Equations::getInstance()->cantor(1.00001, -3)) ?
         "FAIL" : "PASS") << ")" << std::endl;
+
+    // Distance between two points
+    POSE temp = {.x = -1, .y = -7, .theta = 0};
+    POSE other = {.x = 2, .y = -3, .theta = 0};
+    std::cout << "Distance between pts (" <<
+        ((Equations::getInstance()->distBetweenPts(temp, other) == 5) ? "PASS" : "FAIL") <<
+        ")" << std::endl;
 }
 
 void testRedBlackTree() {
@@ -278,7 +311,7 @@ void testRedBlackTree() {
         CLASSIFIER(),
     };
     std::array<FEATURE, 3> sampleFeatures {
-        FEATURE{.xRelative = 0.3, .yRelative = 1.57, .incidentRay = 3.14},
+        FEATURE{.pose.x = 0.3, .pose.y = 1.57, .incidentRay.angle = 3.14},
         FEATURE(),
         FEATURE()
     };
@@ -309,11 +342,13 @@ void testRedBlackTree() {
         FEATURE(),
         FEATURE(),
     };
-    rover.getLocalMap()->getFeaturesFromNode(featuresToPop, index);
 
-    featuresToPop[0].xRelative = -1.2;
+    // Testing whether features are passed by reference
+    rover.getLocalMap()->getFeaturesFromNode(featuresToPop, index);
+    float testVal = featuresToPop[0].pose.x;
+    featuresToPop[0].pose.x = -1.2;
     std::cout << "Get features from node (" <<
-        ((featuresToPop[0].xRelative == sampleFeatures[0].xRelative && sampleFeatures[0].xRelative != -1.2) ?
+        ((testVal == sampleFeatures[0].pose.x && sampleFeatures[0].pose.x != -1.2) ?
         "PASS" : "FAIL") << ")" << std::endl;
 
     // Reset Tree
@@ -344,43 +379,48 @@ void testMatrix() {
     matrix.at(1, 0) = 4;
     matrix.at(1, 1) = 5;
     matrix.at(1, 2) = 6;
-
     std::cout << "Matrix Template (" <<
         ((matrix.at(0, 0) == 1) ? "PASS" : "FAIL") << ")" << std::endl;
+    matrix.print();
 
     matrix.transpose();
-
-    matrix.print();
-
-
     std::cout << "Matrix Transpose (" <<
         ((matrix.at(0, 1) == 4 && matrix.at(2, 0) == 3) ? "PASS" : "FAIL") << ")" << std::endl;
-
-    std::cout << "Reset Matrix" <<std::endl;
-    matrix.resetMatrix();
     matrix.print();
 
-}
 
-void testMatrixMan() {
+    std::cout << "Zero Matrix" <<std::endl;
+    matrix.zeroMatrix();
+    matrix.print();
+
     // Testing inverting matrices (also determinant)
-    Matrix<float> matrix(3, 3);
-    matrix.at(0, 0) = 3, matrix.at(0, 1) = 0, matrix.at(0, 2) = 2;
-    matrix.at(1, 0) = 2, matrix.at(1, 1) = 0, matrix.at(1, 2) = -2;
-    matrix.at(2, 0) = 0, matrix.at(2, 1) = 1, matrix.at(2, 2) = 1;
+    std::cout << "Original Mat: " << std::endl;
+    Matrix<float> toInv(3, 3);
+    toInv.at(0, 0) = 3, toInv.at(0, 1) = 0, toInv.at(0, 2) = 2;
+    toInv.at(1, 0) = 2, toInv.at(1, 1) = 0, toInv.at(1, 2) = -2;
+    toInv.at(2, 0) = 0, toInv.at(2, 1) = 1, toInv.at(2, 2) = 1;
 
-    MatrixManipulator::getInstance()->invert<float>(&matrix);
+    toInv.invert();
 
     Matrix<float> inverse(3, 3);
     inverse.at(0, 0) = 0.2, inverse.at(0, 1) = 0.2, inverse.at(0, 2) = 0;
     inverse.at(1, 0) = -0.2, inverse.at(1, 1) = 0.3, inverse.at(1, 2) = 1;
     inverse.at(2, 0) = 0.2, inverse.at(2, 1) = -0.3, inverse.at(2, 2) = 0;
 
-    std::cout << "Inverse/Determinant/Adjoint/Cofactor (" <<
-          ((matrix == inverse) ? "PASS" : "FAIL") << ")" << std::endl;
+    toInv.print();
 
+    std::cout << "Inverse (" <<
+              ((toInv == inverse) ? "PASS" : "FAIL") << ")" << std::endl;
+
+}
+
+void testMatrixMan() {
+    Matrix<float> matrix(3, 3);
+    matrix.at(0, 0) = 0.2, matrix.at(0, 1) = 0.2, matrix.at(0, 2) = 0;
+    matrix.at(1, 0) = -0.2, matrix.at(1, 1) = 0.3, matrix.at(1, 2) = 1;
+    matrix.at(2, 0) = 0.2, matrix.at(2, 1) = -0.3, matrix.at(2, 2) = 0;
     // Testing adding matrices
-    MatrixManipulator::getInstance()->add<float>(&matrix, &inverse);
+    MatrixManipulator::getInstance()->add<float>(&matrix, &matrix);
 
     Matrix<float> addition(3, 3);
     addition.at(0, 0) = 0.4, addition.at(0, 1) = 0.4, addition.at(0, 2) = 0;
@@ -398,7 +438,6 @@ void testMatrixMan() {
         ((matrix == empty) ? "PASS" : "FAIL") << ")" << std::endl;
 
     // Testing multiplying matrices
-    Matrix<float> resMult(2, 2);
     Matrix<float> aMatrix(2, 3);
     aMatrix.at(0, 0) = 1, aMatrix.at(0, 1) = 2, aMatrix.at(0, 2) = 3;
     aMatrix.at(1, 0) = 4, aMatrix.at(1, 1) = 5, aMatrix.at(1, 2) = 6;
@@ -412,10 +451,107 @@ void testMatrixMan() {
     testMat.at(0, 0) = 58, testMat.at(0, 1) = 64;
     testMat.at(1, 0) = 139, testMat.at(1, 1) = 154;
 
-    MatrixManipulator::getInstance()->multiply(&resMult, &aMatrix, &bMatrix);
+    Matrix<float> resMult = MatrixManipulator::getInstance()->multiply<float>(&aMatrix, &bMatrix);
+
+    Matrix<float> mat_1(2, 2);
+    mat_1.at(0, 0) = 1, mat_1.at(0, 1) = 2;
+    mat_1.at(1, 0) = 3, mat_1.at(1, 1) = 4;
+
+    Matrix<float> mat_2(2, 2);
+    mat_1.at(0, 0) = 1, mat_1.at(0, 1) = 2;
+    mat_1.at(1, 0) = 3, mat_1.at(1, 1) = 4;
+
+    Matrix<float> mat_3(2, 2);
+    mat_1.at(0, 0) = 7, mat_1.at(0, 1) = 10;
+    mat_1.at(1, 0) = 15, mat_1.at(1, 1) = 22;
+
+    Matrix<float> res = MatrixManipulator::getInstance()->multiply<float>(&mat_1, &mat_2);
 
     std::cout << "Matrix Multiplication (" <<
-        ((resMult == testMat) ? "PASS" : "FAIL") << ")" << std::endl;
+        ((resMult == testMat && res == mat_3) ? "PASS" : "FAIL") << ")" << std::endl;
 
+    Matrix<float> quad = MatrixManipulator::getInstance()->quadratic<float>(&mat_1, &mat_2);
+    mat_1.invert();
+
+    Matrix<float> resQuad_1 = MatrixManipulator::getInstance()->multiply<float>(&res, &mat_1);
+
+    std::cout << "Matrix Quadratic (" <<
+    ((quad == resQuad_1) ? "PASS": "FAIL") <<
+    ")" << std::endl;
+}
+
+void testSeif() {
+    /*
+     * Goal: drive the rover in a figure 8
+     * Starting Pt: '^'
+     * OBJ: '#'
+     *      ___
+     *  #  |___|
+     *     |___|
+     *     ^
+     * Verify pose at each vertex.
+     */
+    POSE rPose;
+    std::vector<RAY> rays {
+            {.range = 1.3, .angle = (float) 0.57},
+            {.range = 1.3, .angle = (float) 0.0}
+    };
+
+    std::vector<VELOCITY> control {
+            {.linear = 0.3, .angular = 0}, // Drive Up
+            {.linear = 0, .angular = -1.57}, // Turn Right
+            {.linear = 0.3, .angular = 0}, // Drive Right
+            {.linear = 0, .angular = 1.57}, // Turn Up
+            {.linear = 0.3, .angular = 0}, // Drive Up
+
+            {.linear = 0, .angular = 1.57}, // Turn Left
+            {.linear = 0.3, .angular = 0}, // Drive Left
+            {.linear = 0, .angular = 1.57}, // Turn Down
+            {.linear = 0.3, .angular = 0}, // Drive Down
+            {.linear = 0, .angular = 1.57}, // Turn Left
+
+            {.linear = 0.3, .angular = 0}, // Drive Right
+            {.linear = 0, .angular = -1.57}, // Turn Right
+            {.linear = 0.3, .angular = 0}, // Drive Down
+            {.linear = 0, .angular = -1.57}, // Turn Right
+            {.linear = 0.3, .angular = 0}, // Drive Left
+
+            {.linear = 0, .angular = -1.57}, // Turn Right
+    };
+    std::cout << "Initial Pose: 0, 0, 0" << std::endl;
+    int j = 0;
+    for (VELOCITY velocity : control) {
+
+        for (int i = 0; i < 10; i++) {
+            seif->motionUpdate(velocity);
+            seif->stateEstimateUpdate();
+
+            // Test Measurements
+            if (j == 0) { // || j == 7) {
+                if (rays[j == 7 ? 1 : 0].range < 2.5) {
+                    seif->measurementUpdate(rays[j]);
+                }
+                float x = rays[j == 7 ? 1 : 0].range * sin(rays[j == 7 ? 1 : 0].angle);
+                float y = rays[j == 7 ? 1 : 0].range * cos(rays[j == 7 ? 1 : 0].angle);
+                float yp = y - velocity.linear;
+                float phi = atan2(x, yp);
+                float Rp = (float) sqrt(pow(x, 2) + pow(yp, 2));
+
+                rays[j == 7 ? 1 : 0].range = Rp;
+                rays[j == 7 ? 1 : 0].angle = phi;
+            }
+            seif->sparsification();
+        }
+        j++;
+
+        static bool isDriving = false;
+        std::cout << ((isDriving = !isDriving) ? "DRIVING -> " : "TURNING -> ");
+        rPose = seif->getRoverPose();
+        std::cout << rPose.x << ", " << rPose.y << ", " << rPose.theta << std::endl;
+    }
+    rPose = seif->getRoverPose();
+    std::cout << "Final Pose: " << rPose.x << ", " << rPose.y << ", " << rPose.theta << std::endl;
+
+    std::cout << "SEIF (" << ((fabs(rPose.x) < 0.01 && fabs(rPose.y) < 0.01 && fabs(rPose.theta) <0.01) ? "PASS" : "FAIL") << ")" << std::endl;
 }
 

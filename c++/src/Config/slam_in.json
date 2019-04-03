@@ -9,7 +9,10 @@
       "sonarRangeInM" : 3.0
     },
     "seif" : {
-      "maxActiveFeatures" : 8
+      "maxActiveFeatures" : 8,
+      "featureDistInM" : 0.5,
+      "R" : 1,
+      "Q" : 0
     },
     "localMap" : {
       "featureSetML" : 0.9

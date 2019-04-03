@@ -9,105 +9,173 @@
 #include <vector>
 #include <functional>
 #include <iostream>
+#include <unordered_map>
+#include <cmath>
+#include <limits>
+#include <Eigen/Dense>
 
+#include <MatrixManipulator.h>
 #include <SharedMemoryStructs.h>
 #include <SLAMConfigIn.h>
 #include <Matrix.h>
 
+#include "../../Agent/Moments/Moments.h"
+
+enum relation {
+    EQUIV = 0,
+    LOWER,
+    HIGHER,
+};
+
 typedef std::function<void(FEATURE, float *)> FeatureCallback;
+
+inline unsigned long featIdx(const unsigned long &idx) { return 3 * idx + 3; }
 
 class Seif {
 public:
     explicit Seif(SEIF_CONFIG *seifConfig) :
+        N(ELEMENT_SIZE + (ELEMENT_SIZE * seifConfig->maxFeatures)),
         featuresFound(0),
-        activeFeatureIndexes(new Matrix<u_long>(seifConfig->maxFeatures)),
-        informationMatrix(new Matrix<float>(No_POSE_ELEMS + (No_RAY_ELEMS * seifConfig->maxFeatures),
-                                            No_POSE_ELEMS + (No_RAY_ELEMS * seifConfig->maxFeatures))),
-        informationVector(new Matrix<float>(No_POSE_ELEMS + (No_RAY_ELEMS * seifConfig->maxFeatures))),
-        stateEstimate(new Matrix<float>(No_POSE_ELEMS + (No_RAY_ELEMS * seifConfig->maxFeatures))),
-        priorStateEstimate(new Matrix<float>(No_POSE_ELEMS + (No_RAY_ELEMS * seifConfig->maxFeatures))),
-        F_X(new Matrix<float>(No_POSE_ELEMS, No_POSE_ELEMS + (No_RAY_ELEMS * seifConfig->maxFeatures))),
-        delta(new Matrix<float>(3)),
-        del(new Matrix<float>(3, 3)),
-        psi(new Matrix<float>(No_POSE_ELEMS + (No_RAY_ELEMS * seifConfig->maxFeatures),
-                              No_POSE_ELEMS + (No_RAY_ELEMS * seifConfig->maxFeatures))),
-        lambda(new Matrix<float>(No_POSE_ELEMS + (No_RAY_ELEMS * seifConfig->maxFeatures),
-                                 No_POSE_ELEMS + (No_RAY_ELEMS * seifConfig->maxFeatures))),
-        phi(new Matrix<float>(No_POSE_ELEMS + (No_RAY_ELEMS * seifConfig->maxFeatures),
-                              No_POSE_ELEMS + (No_RAY_ELEMS * seifConfig->maxFeatures))),
-        kappa(new Matrix<float>(No_POSE_ELEMS + (No_RAY_ELEMS * seifConfig->maxFeatures),
-                                No_POSE_ELEMS + (No_RAY_ELEMS * seifConfig->maxFeatures))),
-        omega_bar(new Matrix<float>(No_POSE_ELEMS + (No_RAY_ELEMS * seifConfig->maxFeatures),
-                                    No_POSE_ELEMS + (No_RAY_ELEMS * seifConfig->maxFeatures))),
-        epsilon_bar(new Matrix<float>(No_POSE_ELEMS + (No_RAY_ELEMS * seifConfig->maxFeatures))),
-        mu_bar(new Matrix<float>(No_POSE_ELEMS + (No_RAY_ELEMS * seifConfig->maxFeatures))),
-        F_I(new Matrix<float>(2, No_POSE_ELEMS + (No_RAY_ELEMS * seifConfig->maxFeatures))),
-        Q(new Matrix<float>(3, 3)),
-        deltaPosition(new Matrix<float>(2)),
+        maxFeatures(seifConfig->maxFeatures),
+        maxActiveFeatures(seifConfig->maxActiveFeatures),
+        minFeatureDist(seifConfig->featureDistInM),
+        recordedFeatures(new std::vector<FEATURE>(seifConfig->maxFeatures, FEATURE{})),
+        activeFeatures(new std::vector<FEATURE>((u_long) maxActiveFeatures, FEATURE{})),
+        toDeactivate(new FEATURE{}),
+        informationMatrix(new Matrix<float>(N, N)),
+        informationVector(new Matrix<float>(N)),
+        stateEstimate(new Matrix<float>(N)),
+        motionCov(new Matrix<float>(ELEMENT_SIZE, ELEMENT_SIZE)),
+        measurementCov(new Matrix<float>(ELEMENT_SIZE, ELEMENT_SIZE)),
+        F_X(new Matrix<float>(ELEMENT_SIZE, N)),
+        delta(new Matrix<float>(ELEMENT_SIZE)),
+        del(new Matrix<float>(ELEMENT_SIZE, ELEMENT_SIZE)),
+        psi(new Matrix<float>(N, N)),
+        lambda(new Matrix<float>(N, N)),
+        phi(new Matrix<float>(N, N)),
+        kappa(new Matrix<float>(N, N)),
+        F_I(new Matrix<float>((ELEMENT_SIZE - 1), N)),
+        deltaPosition(new Matrix<float>(ELEMENT_SIZE - 1)),
         q(0),
-        zHat(new Matrix<float>(3)),
-        H(new Matrix<float>(3, No_POSE_ELEMS + (No_RAY_ELEMS * seifConfig->maxFeatures)))
-    {}
+        zHat(new Matrix<float>(ELEMENT_SIZE)),
+        H(new Matrix<float>(ELEMENT_SIZE, N))
+    {
+        for (u_long i = 0; i < ELEMENT_SIZE; i++) {
+            F_X->at(i, i) = 1;
+            motionCov->at(i, i) = seifConfig->R;
+            measurementCov->at(i, i) = seifConfig->Q;
+            // Need to mark <x, y, theta> as observed
+            informationMatrix->at(i, i) = 1;
+        }
+    }
     ~Seif() = default;
 
     void connectFeatureCallback(FeatureCallback &callback);
-    void motionUpdate(POSE &pose, VELOCITY &velocity);
-    POSE *updateStateEstimate();
+    void motionUpdate(const VELOCITY &velocity);
+    POSE stateEstimateUpdate();
 
     // Run on separate Thread
-    void measurementUpdate(RAY &incidentRay);
+    void measurementUpdate(const RAY &incidentRay);
     void sparsification();
 
+    // For testing purposes only.
+    POSE getRoverPose();
+    void printRoverPose();
+
 private:
-    bool isNewFeature(const RAY &incidentRay);
-    float *roverPose();
+    /*
+     * Functions
+     */
+    // For testing purposes only
+    bool printMatrices = false;
+
+    // Motion Update (func)
+    void updateDeltaDel(const VELOCITY &velocity);
+    void updatePsi();
+    void updateLambda();
+    void updatePhi();
+    void updateKappa();
+    void updateOmegaBar();
+    void updateEpsilonBar();
+    void updateMuBar();
+
+    // State Estimate (func)
+    void resolveActiveFeats();
+    void resolveAllFeats(const Matrix<float> *stateEstimate);
+
+    // Measurement Update (func)
+    void updateDeltaPos(const POSE &pose);
+    void update_q();
+    void updateZHat(const float &correspondence);
+    void updateH(const unsigned long &idx);
+    void updateEpsilon(const FEATURE &feature);
+    void updateOmega();
+    void remodel(FEATURE &feature, const RAY &incidentRay);
+    bool hasBeenObserved(const float &correspondence);
+    void addFeature(FEATURE &feature);
+    u_long &nextFeatureIndex();
+    void organizeFeatures();
+    relation comparison(const float &identifier, const float &otherID);
+    bool isActiveFull();
+
+
+    // Sparsification (func)
+    void updateInformationMatrix();
+    void updateInformationVector(const Matrix<float> *prevInfoMat);
+    Matrix<float> resolveProjection(const Matrix<float> *projection);
+    Matrix<float> defineProjection(const unsigned long *idx, const bool &includePose = true);
+    void makeInactive(FEATURE *toDeact);
+
+    // Tools
+    Matrix<float> identity(const unsigned long &size);
+    static bool correspondenceSort(const FEATURE &feat, const FEATURE &other);
+    static bool distanceSort(const FEATURE &featA, const FEATURE &featB);
 
     // Run on separate Thread
     void logFeature(const FEATURE &feature, std::array<float, 3> roverPose);
 
+
+
     /**
      * Variables
      */
-    long featuresFound;
-    std::shared_ptr<Matrix<unsigned long>> activeFeatureIndexes;
+    static POSE rPose;
+
+    const unsigned long N;
+    unsigned long featuresFound;
+    unsigned long maxFeatures;
+    int maxActiveFeatures;
+    float minFeatureDist;
+    std::shared_ptr<std::vector<FEATURE>> recordedFeatures;
+    std::shared_ptr<std::vector<FEATURE>> activeFeatures;
+    std::shared_ptr<FEATURE> toDeactivate;
     std::shared_ptr<Matrix<float>> informationMatrix;
     std::shared_ptr<Matrix<float>> informationVector;
     std::shared_ptr<Matrix<float>> stateEstimate;
-    std::shared_ptr<Matrix<float>> priorStateEstimate;
+
+    std::shared_ptr<Matrix<float>> motionCov;
+    std::shared_ptr<Matrix<float>> measurementCov;
 
     // Callback
     std::shared_ptr<FeatureCallback> callback;
 
-    /*
-     * Motion Update
-     */
-    std::shared_ptr<Matrix<float>> F_X; // Transpose is being stored (different from text)
+    // Motion Update (vars)
+    std::shared_ptr<Matrix<float>> F_X;
     std::shared_ptr<Matrix<float>> delta;
     std::shared_ptr<Matrix<float>> del;
-
     std::shared_ptr<Matrix<float>> psi;
     std::shared_ptr<Matrix<float>> lambda;
     std::shared_ptr<Matrix<float>> phi;
     std::shared_ptr<Matrix<float>> kappa;
-    std::shared_ptr<Matrix<float>> omega_bar;
-    std::shared_ptr<Matrix<float>> epsilon_bar;
-    std::shared_ptr<Matrix<float>> mu_bar;
 
-    /*
-     * State Estimate
-     */
-    std::shared_ptr<Matrix<float>> F_I; // Transpose is being stored (different from text)
+    // State Estimate (vars)
+    std::shared_ptr<Matrix<float>> F_I;
 
-    /*
-     * Measurment
-     */
-    std::shared_ptr<Matrix<float>> Q;
+    // Measurment (vars)
     std::shared_ptr<Matrix<float>> deltaPosition;
-    float q; // TODO : need to verify that initial value of 0.0 is acceptable
+    float q;
     std::shared_ptr<Matrix<float>> zHat;
-    std::shared_ptr<Matrix<float>> H; // Transpose is being stored (different from text)
-
+    std::shared_ptr<Matrix<float>> H;
 };
-
 
 #endif //C_SEIF_H

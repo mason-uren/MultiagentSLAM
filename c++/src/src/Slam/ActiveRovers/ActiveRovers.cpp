@@ -30,7 +30,7 @@ bool ActiveRovers::getRoverByID(const int &id, Rover &rover) {
         };
         return this->getRoverByName(name, rover);
     } catch (const std::out_of_range &error) {
-        std::cerr << "Rover ID not found : " << error.what() << std::endl;
+        std::cerr << "Rover CORRESPONDENCE not found : " << error.what() << std::endl;
     }
     return false;
 }

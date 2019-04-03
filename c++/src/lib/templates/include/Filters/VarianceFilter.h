@@ -18,7 +18,10 @@ public:
     ~VarianceFilter() = default;
 
     T onlineVariance(const T &input, const T &mean) {
-        return variance = sumOfSquaresOfDifferences(input, mean) / population++;
+        variance = sumOfSquaresOfDifferences(input, mean) / population;
+        prevMean = mean;
+        population++;
+        return variance;
     }
 
     T getFilteredVariance() const {

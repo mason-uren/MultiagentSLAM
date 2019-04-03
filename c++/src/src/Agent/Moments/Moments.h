@@ -12,6 +12,27 @@
 
 #include <MeanFilter.h>
 #include <VarianceFilter.h>
+#include <CovarianceFilter.h>
+#include <SharedMemoryStructs.h>
+
+typedef struct {
+    std::array<MeanFilter<float> *, ELEMENT_SIZE> means {
+            new MeanFilter<float>(),
+            new MeanFilter<float>(),
+            new MeanFilter<float>()
+    };
+    std::array<VarianceFilter<float> *, ELEMENT_SIZE> variances {
+            new VarianceFilter<float>(),
+            new VarianceFilter<float>(),
+            new VarianceFilter<float>()
+    };
+    std::array<CovarianceFilter<float> *, ELEMENT_SIZE> covariances {
+            new CovarianceFilter<float>(),
+            new CovarianceFilter<float>(),
+            new CovarianceFilter<float>()
+    };
+} STATS;
+
 
 class Moments {
 public:
@@ -20,27 +41,22 @@ public:
         return &instance;
     }
 
-    std::array<MeanFilter<float> *, 3> *getMeans();
-    std::array<VarianceFilter<float> *, 3> *getVariances();
+    STATS * getMotion();
+    STATS * getMeasurement();
+
 
 private:
     Moments() :
-            means{
-                    new MeanFilter<float>(),
-                    new MeanFilter<float>(),
-                    new MeanFilter<float>()
-            },
-            variances{
-                    new VarianceFilter<float>(),
-                    new VarianceFilter<float>(),
-                    new VarianceFilter<float>()
-            }
+            motion(new STATS{}),
+            measurement(new STATS{})
     {}
     Moments(Moments const &);
     void operator=(Moments const &);
 
-    std::array<MeanFilter<float> *, 3> means;
-    std::array<VarianceFilter<float> *, 3> variances;
+    std::shared_ptr<STATS> motion;
+    std::shared_ptr<STATS> measurement;
+
+
 
 };
 
