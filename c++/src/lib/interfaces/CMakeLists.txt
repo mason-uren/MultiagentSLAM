@@ -5,5 +5,12 @@ add_library(interfaces INTERFACE)
 
 # Interface targets only have interface properties
 target_include_directories(interfaces
-        INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include
-        )
+    INTERFACE
+        $<INSTALL_INTERFACE::include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    )
+
+target_compile_features(interfaces
+    INTERFACE
+        cxx_std_11
+)

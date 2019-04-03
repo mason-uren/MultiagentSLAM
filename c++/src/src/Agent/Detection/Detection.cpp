@@ -42,8 +42,8 @@ void Detection::addToFilter(const SONAR &ray) {
 
 void Detection::inverseRayWeighting() {
     float leftRange, centerRange, rightRange;
-    float minRange = std::min(
-            std::min(
+    float minRange = std::fmin(
+            std::fmin(
                     leftRange = this->leftSonarFilter->getValue(),
                     centerRange = this->centerSonarFilter->getValue()
                     ),

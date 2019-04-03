@@ -21,9 +21,9 @@ public:
         classifier(new CLASSIFIER{.area = 0, .orientation = 0, .signature = 0}),
         featureSet(new std::array<FEATURE, 3>
                 {
-                    (FEATURE{.xRelative = 0, .yRelative = 0, .incidentRay = 0}),
-                    (FEATURE{.xRelative = 0, .yRelative = 0, .incidentRay = 0}),
-                    (FEATURE{.xRelative = 0, .yRelative = 0, .incidentRay = 0})
+                    (FEATURE{.pose = 0, .incidentRay = 0}),
+                    (FEATURE{.pose = 0, .incidentRay = 0}),
+                    (FEATURE{.pose = 0, .incidentRay = 0})
                 }
         ),
         color(node_color::RED),

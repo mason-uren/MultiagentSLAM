@@ -9,6 +9,7 @@
 #ifndef C_ROVER_H
 #define C_ROVER_H
 
+#define BOOST_ALLOW_DEPRECATED_HEADERS
 
 #include <functional>
 #include <SLAMConfigIn.h>

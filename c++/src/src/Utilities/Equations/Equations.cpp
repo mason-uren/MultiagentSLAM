@@ -6,19 +6,27 @@
 
 // RAY - range (0) angle (1)
 // POSE - x (0) y (1) theta (2)
-std::array<float, 2> Equations::originToPoint(const std::array<float, 2> &ray, const std::array<float, 3> &pose) {
+std::array<float, 2> Equations::originToPoint(const RAY &ray,
+        const std::array<float, 3> &pose,
+        const bool &orthogonal) {
     return {
-            (ray[RANGE] * sin(pose[THETA] + ray[ANGLE]) + pose[X]),
-            (ray[RANGE] * cos(pose[THETA] + ray[ANGLE]) + pose[Y])
+            (ray.range * sin(pose[THETA] + ray.angle)) + (orthogonal ? pose[Y] : pose[X]),
+            (ray.range * cos(pose[THETA] + ray.angle)) + (orthogonal ? pose[X] : pose[Y])
     };
 }
 
-float Equations::wrapTheta(const double &orientation) {
-    float heading = (float) orientation;
-    if (fmod(heading + M_PI, 2 * M_PI) < 0) {
-        heading += 2 * M_PI;
+float Equations::wrapTheta(const float &orientation) {
+    if (!this->isZero(orientation)) {
+        if (M_PI - fabs(orientation) < 0) {
+            float orient;
+            if (this->isZero(orient = atan2(sin(orientation), cos(orientation)))) {
+                return 0;
+            }
+            return orient;
+        }
+        return orientation;
     }
-    return (-1) * static_cast<float>(heading - M_PI);
+    return 0;
 }
 
 float Equations::normalizeValue(const float &value, const float &lowbound, const float &highbound) {
@@ -52,4 +60,12 @@ float Equations::dotProduct(const std::vector<float> *vec_1, const std::vector<f
         }
     }
     return dotProduct;
+}
+
+float Equations::distBetweenPts(const POSE &pose, const POSE &other) {
+    return hypot(abs(pose.x - other.x), abs(pose.y - other.y));
+}
+
+bool Equations::isZero(const float &value) {
+    return fabs(value) < 1E-4;
 }
