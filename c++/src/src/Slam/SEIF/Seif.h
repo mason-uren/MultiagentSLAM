@@ -138,7 +138,6 @@ private:
     void logFeature(const FEATURE &feature, std::array<float, 3> roverPose);
 
 
-
     /**
      * Variables
      */

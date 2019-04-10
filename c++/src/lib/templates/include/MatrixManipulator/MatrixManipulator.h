@@ -48,13 +48,10 @@ Matrix<T> MatrixManipulator::quadratic(const Matrix<T> *outerMat, const Matrix<S
         leftHS = multiply<T, S>(&transpose, innerMat);
         return multiply<T, S>(&leftHS, outerMat);
     }
-//    else if (outerMat->numRows() == innerMat->numRows()) {
     else {
         leftHS = multiply<T, S>(outerMat, innerMat);
         return multiply<T, S>(&leftHS, &transpose);
     }
-//
-//    exit(EXIT_FAILURE);
 }
 
 template<typename T, typename S>

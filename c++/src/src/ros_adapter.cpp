@@ -557,8 +557,8 @@ void testSeif() {
     };
     std::cout << "Initial Pose: 0, 0, 0" << std::endl;
     int j = 0;
+    clock_t time = clock();
     for (VELOCITY velocity : control) {
-
         for (int i = 0; i < 10; i++) {
             seif->motionUpdate(velocity);
             seif->stateEstimateUpdate();
@@ -572,10 +572,8 @@ void testSeif() {
 
                 rays[j].range = (phi > 1.74 / 2) ? -MAXFLOAT : Rp;
                 rays[j].angle = (phi > 1.74 / 2) ? -MAXFLOAT : phi;
-//                std::cout << "RAY : {" << rays[j].range << ", " << rays[j].angle << "}" << std::endl;
             }
             seif->sparsification();
-//            seif->printRoverPose();
         }
 //        j++;
 
@@ -584,6 +582,9 @@ void testSeif() {
         rPose = seif->getRoverPose();
         std::cout << rPose.x << ", " << rPose.y << ", " << rPose.theta << std::endl;
     }
+
+    std::cout << "Total Time: " << (clock() - time) / CLOCKS_PER_SEC << std::endl;
+
     rPose = seif->getRoverPose();
     std::cout << "Final Pose: " << rPose.x << ", " << rPose.y << ", " << rPose.theta << std::endl;
 

@@ -58,52 +58,19 @@ void Seif::measurementUpdate(const RAY &incidentRay) {
             this->organizeFeatures();
         }
     }
-
-//    std::cout << "Epsilon" << std::endl;
-//    this->informationVector->print();
-//
-//    std::cout << "Q : " << std::endl;
-//    measurementCov->print();
-
-//    std::cout << "Recorded : " << std::endl;
-    // Loop through all observed features (active and inactive)
     Matrix<float> vecSum(N);
     Matrix<float> matrixSum(N, N);
     for (unsigned long featIdx = 0; featIdx < this->featuresFound; featIdx++) {
         feature = (*this->recordedFeatures)[featIdx];
-//        std::cout << "C : " << feature.correspondence <<
-//                  " Pose : (" << feature.pose.x << ", " <<
-//                  feature.pose.y << ")" << std::endl;
-
         this->updateDeltaPos(feature.pose);
-//        std::cout << "Delta Position :" << std::endl;
-//        this->deltaPosition->print();
-
         this->update_q();
-//        std::cout << "q : " << this->q << std::endl;
-
         this->updateZHat(feature.correspondence);
-//        std::cout << "ZHat :" << std::endl;
-//        this->zHat->print();
-
         this->updateH(featIdx);
-//        std::cout << "H :" << std::endl;
-//        this->H->print();
-
-        // TODO : using `infoVector` as summation variable
         this->infoVecSummation(&vecSum, feature);
         this->infoMatrixSummation(&matrixSum);
     }
-//    std::cout << "Vec Sum" << std::endl;
-//    vecSum.print();
     MatrixManipulator::getInstance()->add(&(*this->informationVector), &vecSum);
     MatrixManipulator::getInstance()->add(&(*this->informationMatrix), &matrixSum);
-
-//    std::cout << "Epsilon" << std::endl;
-//    this->informationVector->print();
-
-//    std::cout << "Omega" << std::endl;
-//    this->informationMatrix->print();
 }
 
 void Seif::sparsification() {
@@ -375,8 +342,6 @@ void Seif::addFeature(FEATURE &feature) {
     }
     (*this->activeFeatures)[idx] = feature;
     (*this->recordedFeatures)[this->nextFeatureIndex()++] = feature;
-
-    // TODO: maybe should mark feature on info mat and vec
 }
 
 u_long &Seif::nextFeatureIndex() {
