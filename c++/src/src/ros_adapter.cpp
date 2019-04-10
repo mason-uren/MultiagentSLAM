@@ -23,6 +23,8 @@
 void loadDefaultConfig();
 void jsonInitialize();
 
+void testEnv();
+
 // Verification Functions
 void printActiveRovers();
 void testMeanFilter();
@@ -51,6 +53,8 @@ int main() {
 
     loadDefaultConfig();
     jsonInitialize(); // All initialization should occur here.
+
+//    testEnv();
 
 //    printActiveRovers();
 //    testMeanFilter();
@@ -267,8 +271,8 @@ void testEquations() {
     std::cout << "Wrapping (" << ((fabs(largeWrap) - 1.58) < 0.1 && (M_PI_2 - fabs(smallWrap) < 0.1) ? "PASS" : "FAIL") << ")" << std::endl;
 
     // Normalize Value
-    float norm = Equations::getInstance()->normalizeValue(3, 0, 10);
-    std::cout << "Norm (" << ((norm > 0.29 && norm < 0.31) ? "PASS" : "FAIL") << ")" << std::endl;
+    float norm = Equations::getInstance()->normalizeValue(3, 0, 5);
+    std::cout << "Norm (" << (fabs(norm - 0.6) < 0.1 ? "PASS" : "FAIL") << ")" << std::endl;
 
     // Centroid
     std::array<std::array<float, 2>, 3> pairs = {};
@@ -415,41 +419,74 @@ void testMatrix() {
 }
 
 void testMatrixMan() {
-    Matrix<float> matrix(3, 3);
-    matrix.at(0, 0) = 0.2, matrix.at(0, 1) = 0.2, matrix.at(0, 2) = 0;
-    matrix.at(1, 0) = -0.2, matrix.at(1, 1) = 0.3, matrix.at(1, 2) = 1;
-    matrix.at(2, 0) = 0.2, matrix.at(2, 1) = -0.3, matrix.at(2, 2) = 0;
-    // Testing adding matrices
-    MatrixManipulator::getInstance()->add<float>(&matrix, &matrix);
+    Matrix<float> matrix{
+            {1, 0, 2},
+            {0, 5, 0},
+            {3, 0, 4}
+    };
 
-    Matrix<float> addition(3, 3);
-    addition.at(0, 0) = 0.4, addition.at(0, 1) = 0.4, addition.at(0, 2) = 0;
-    addition.at(1, 0) = -0.4, addition.at(1, 1) = 0.6, addition.at(1, 2) = 2;
-    addition.at(2, 0) = 0.4, addition.at(2, 1) = -0.6, addition.at(2, 2) = 0;
+    // Testing scalar multipliction
+    MatrixManipulator::getInstance()->scalarMult(&matrix, 3);
+    Matrix<float> scalarTest{
+            {3, 0, 6},
+            {0, 15, 0},
+            {9, 0, 12}
+    };
+
+    std::cout << "Matrix Scalar (" <<
+        ((matrix == scalarTest) ? "PASS" : "FAIL") << ")" << std::endl;
+
+    // Testing adding matrices
+    Matrix<float> toAdd{
+            {-3, 1, -6},
+            {1, 15, 1},
+            {-9, 1, -12}
+    };
+    MatrixManipulator::getInstance()->add<float>(&matrix, &toAdd);
+    Matrix<float> addTest{
+            {0, 1, 0},
+            {1, 30, 1},
+            {0, 1, 0}
+    };
+
+    matrix.print();
+    addTest.print();
 
     std::cout << "Matrix Addition (" <<
-         ((matrix == addition) ? "PASS" : "FAIL") << ")" << std::endl;
+         ((matrix == addTest) ? "PASS" : "FAIL") << ")" << std::endl;
 
     // Testing subtracting matrices
-    Matrix<float> empty(3, 3);
-    MatrixManipulator::getInstance()->subtract<float>(&matrix, &addition);
+    Matrix<float> mat_a{
+        {1}, {0.15}, {1}
+    };
+    Matrix<float> mat_b{
+        {1}, {0.1}, {(float) -0.0481578}
+    };
+    Matrix<float> resSub{
+        {0}, {0.05}, {(float) 1.04816}
+    };
+    MatrixManipulator::getInstance()->subtract<float>(&mat_a, &mat_b);
 
     std::cout << "Matrix Subtraction (" <<
-        ((matrix == empty) ? "PASS" : "FAIL") << ")" << std::endl;
+        ((mat_a == resSub) ? "PASS" : "FAIL") << ")" << std::endl;
 
     // Testing multiplying matrices
-    Matrix<float> aMatrix(2, 3);
-    aMatrix.at(0, 0) = 1, aMatrix.at(0, 1) = 2, aMatrix.at(0, 2) = 3;
-    aMatrix.at(1, 0) = 4, aMatrix.at(1, 1) = 5, aMatrix.at(1, 2) = 6;
+    Matrix<float> aMatrix(4, 3);
+    aMatrix.at(0, 0) = 1, aMatrix.at(0, 1) = 0, aMatrix.at(0, 2) = 2;
+    aMatrix.at(1, 0) = 0, aMatrix.at(1, 1) = 3, aMatrix.at(1, 2) = 0;
+    aMatrix.at(2, 0) = 4, aMatrix.at(2, 1) = 0, aMatrix.at(2, 2) = 5;
+    aMatrix.at(3, 0) = 0, aMatrix.at(3, 1) = 6, aMatrix.at(3, 2) = 0;
 
     Matrix<float> bMatrix(3, 2);
-    bMatrix.at(0, 0) = 7, bMatrix.at(0, 1) = 8;
-    bMatrix.at(1, 0) = 9, bMatrix.at(1, 1) = 10;
-    bMatrix.at(2, 0) = 11, bMatrix.at(2, 1) = 12;
+    bMatrix.at(0, 0) = 7, bMatrix.at(0, 1) = 0;
+    bMatrix.at(1, 0) = 8, bMatrix.at(1, 1) = 0;
+    bMatrix.at(2, 0) = 9, bMatrix.at(2, 1) = 0;
 
-    Matrix<float> testMat(2, 2);
-    testMat.at(0, 0) = 58, testMat.at(0, 1) = 64;
-    testMat.at(1, 0) = 139, testMat.at(1, 1) = 154;
+    Matrix<float> testMat(4, 2);
+    testMat.at(0, 0) = 25, testMat.at(0, 1) = 0;
+    testMat.at(1, 0) = 24, testMat.at(1, 1) = 0;
+    testMat.at(2, 0) = 73, testMat.at(2, 1) = 0;
+    testMat.at(3, 0) = 48, testMat.at(3, 1) = 0;
 
     Matrix<float> resMult = MatrixManipulator::getInstance()->multiply<float>(&aMatrix, &bMatrix);
 
@@ -520,38 +557,41 @@ void testSeif() {
     };
     std::cout << "Initial Pose: 0, 0, 0" << std::endl;
     int j = 0;
+    clock_t time = clock();
     for (VELOCITY velocity : control) {
-
         for (int i = 0; i < 10; i++) {
             seif->motionUpdate(velocity);
             seif->stateEstimateUpdate();
-
-            // Test Measurements
-            if (j == 0) { // || j == 7) {
-                if (rays[j == 7 ? 1 : 0].range < 2.5) {
-                    seif->measurementUpdate(rays[j]);
-                }
-                float x = rays[j == 7 ? 1 : 0].range * sin(rays[j == 7 ? 1 : 0].angle);
-                float y = rays[j == 7 ? 1 : 0].range * cos(rays[j == 7 ? 1 : 0].angle);
+            seif->measurementUpdate(rays[j]);
+            if (rays[j].range != -MAXFLOAT && rays[j].angle != -MAXFLOAT) {
+                float x = rays[j].range * sin(rays[j].angle);
+                float y = rays[j].range * cos(rays[j].angle);
                 float yp = y - velocity.linear;
                 float phi = atan2(x, yp);
                 float Rp = (float) sqrt(pow(x, 2) + pow(yp, 2));
 
-                rays[j == 7 ? 1 : 0].range = Rp;
-                rays[j == 7 ? 1 : 0].angle = phi;
+                rays[j].range = (phi > 1.74 / 2) ? -MAXFLOAT : Rp;
+                rays[j].angle = (phi > 1.74 / 2) ? -MAXFLOAT : phi;
             }
             seif->sparsification();
         }
-        j++;
+//        j++;
 
         static bool isDriving = false;
         std::cout << ((isDriving = !isDriving) ? "DRIVING -> " : "TURNING -> ");
         rPose = seif->getRoverPose();
         std::cout << rPose.x << ", " << rPose.y << ", " << rPose.theta << std::endl;
     }
+
+    std::cout << "Total Time: " << (clock() - time) / CLOCKS_PER_SEC << std::endl;
+
     rPose = seif->getRoverPose();
     std::cout << "Final Pose: " << rPose.x << ", " << rPose.y << ", " << rPose.theta << std::endl;
 
     std::cout << "SEIF (" << ((fabs(rPose.x) < 0.01 && fabs(rPose.y) < 0.01 && fabs(rPose.theta) <0.01) ? "PASS" : "FAIL") << ")" << std::endl;
+}
+
+void testEnv() {
+
 }
 

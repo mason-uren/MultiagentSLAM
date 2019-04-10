@@ -11,8 +11,8 @@
     "seif" : {
       "maxActiveFeatures" : 8,
       "featureDistInM" : 0.5,
-      "R" : 1,
-      "Q" : 0
+      "R" : [0.001, 0.001, 0.001],
+      "Q" : [1E5, 1E5, 1]
     },
     "localMap" : {
       "featureSetML" : 0.9

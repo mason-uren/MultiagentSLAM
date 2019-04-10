@@ -39,9 +39,12 @@ public:
         maxFeatures(seifConfig->maxFeatures),
         maxActiveFeatures(seifConfig->maxActiveFeatures),
         minFeatureDist(seifConfig->featureDistInM),
+        maxCorrespondence(Equations::getInstance()->cantor(
+                (seifConfig->featureDistInM * 2) * maxFeatures,
+                (seifConfig->featureDistInM * 2)) * maxFeatures), // Diameter of feature marker
         recordedFeatures(new std::vector<FEATURE>(seifConfig->maxFeatures, FEATURE{})),
         activeFeatures(new std::vector<FEATURE>((u_long) maxActiveFeatures, FEATURE{})),
-        toDeactivate(new FEATURE{}),
+        toDeactivate(new FEATURE{.correspondence = -MAXFLOAT}),
         informationMatrix(new Matrix<float>(N, N)),
         informationVector(new Matrix<float>(N)),
         stateEstimate(new Matrix<float>(N)),
@@ -62,8 +65,8 @@ public:
     {
         for (u_long i = 0; i < ELEMENT_SIZE; i++) {
             F_X->at(i, i) = 1;
-            motionCov->at(i, i) = seifConfig->R;
-            measurementCov->at(i, i) = seifConfig->Q;
+            motionCov->at(i, i) = seifConfig->R[i];
+            measurementCov->at(i, i) = seifConfig->Q[i];
             // Need to mark <x, y, theta> as observed
             informationMatrix->at(i, i) = 1;
         }
@@ -100,30 +103,30 @@ private:
     void updateMuBar();
 
     // State Estimate (func)
-    void resolveActiveFeats();
-    void resolveAllFeats(const Matrix<float> *stateEstimate);
+    void integrateActiveFeatures();
+    void generateStateEstimate(const Matrix<float> *stateEstimate);
 
     // Measurement Update (func)
-    void updateDeltaPos(const POSE &pose);
-    void update_q();
-    void updateZHat(const float &correspondence);
-    void updateH(const unsigned long &idx);
-    void updateEpsilon(const FEATURE &feature);
-    void updateOmega();
-    void remodel(FEATURE &feature, const RAY &incidentRay);
+    bool isNewFeature(const RAY &incidentRay);
+    void deriveFeature(FEATURE &feature, const RAY &incidentRay);
     bool hasBeenObserved(const float &correspondence);
     void addFeature(FEATURE &feature);
     u_long &nextFeatureIndex();
     void organizeFeatures();
     relation comparison(const float &identifier, const float &otherID);
     bool isActiveFull();
-
+    void updateDeltaPos(const POSE &featPose);
+    void update_q();
+    void updateZHat(const float &correspondence);
+    void updateH(const unsigned long &idx);
+    void infoVecSummation(Matrix<float> *infoVec, const FEATURE &feature);
+    void infoMatrixSummation(Matrix<float> *infoMatrix);
 
     // Sparsification (func)
     void updateInformationMatrix();
     void updateInformationVector(const Matrix<float> *prevInfoMat);
     Matrix<float> resolveProjection(const Matrix<float> *projection);
-    Matrix<float> defineProjection(const unsigned long *idx, const bool &includePose = true);
+    Matrix<float> defineProjection(const FEATURE *feat, const bool &includePose = true);
     void makeInactive(FEATURE *toDeact);
 
     // Tools
@@ -133,7 +136,6 @@ private:
 
     // Run on separate Thread
     void logFeature(const FEATURE &feature, std::array<float, 3> roverPose);
-
 
 
     /**
@@ -146,6 +148,7 @@ private:
     unsigned long maxFeatures;
     int maxActiveFeatures;
     float minFeatureDist;
+    float maxCorrespondence;
     std::shared_ptr<std::vector<FEATURE>> recordedFeatures;
     std::shared_ptr<std::vector<FEATURE>> activeFeatures;
     std::shared_ptr<FEATURE> toDeactivate;

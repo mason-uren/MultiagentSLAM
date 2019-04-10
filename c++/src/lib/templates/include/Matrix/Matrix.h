@@ -6,11 +6,12 @@
 #define MULTIAGENTSLAM_MATRIX_H
 
 #define EIGEN_USE_MKL_ALL
+#define EPSILON 1
 
 #include <iostream>
 #include <algorithm>
 #include <Eigen/Dense>
-
+#include <Eigen/SparseCore>
 
 template <class T>
 class Matrix {
@@ -21,17 +22,31 @@ public:
         nCols(cols),
         trans(false)
     {}
-    Matrix(const std::initializer_list<T> list) :
-        data(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>::Zero(1, list.size())),
-        nRows(1),
-        nCols((u_long) list.size()),
+    Matrix(const std::initializer_list<const std::initializer_list<T>> list) :
+        data(
+                Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>::Zero(
+                        list.size() < 2 ? list.begin()->size() : list.size(),
+                        list.size() < 2 ? list.size() : list.begin()->size())
+            ),
+        nRows((u_long) list.size() < 2 ? list.begin()->size() : list.size()),
+        nCols((u_long) list.size() < 2 ? list.size() : list.begin()->size()),
         trans(false)
     {
-        int i = 0;
-        for (auto val : list) {
-            data(i++) = val;
+        int i = 0; int j = 0;
+        for (auto innerList : list) {
+            for (auto val : innerList) {
+                data(i, j++) = val;
+            }
+            i++;
+            j = 0;
         }
     }
+    Matrix(const Matrix &matrix) :
+        data(matrix.data),
+        nRows(matrix.nRows),
+        nCols(matrix.nCols),
+        trans(matrix.trans)
+    {}
     Matrix() = default;
     ~Matrix() = default;
 
@@ -55,7 +70,7 @@ public:
     void print();
 
 private:
-    explicit Matrix(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> &matrix) :
+    explicit Matrix(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> &matrix) :
             data(matrix),
             nRows((u_long) matrix.rows()),
             nCols((u_long) matrix.cols()),
@@ -64,8 +79,12 @@ private:
 
     friend class MatrixManipulator;
     Matrix<T> operator*(const Matrix<T> &matrix) const;
+    void operator*=(const float &scalar);
     void operator-=(const Matrix<T> &matrix);
     void operator+=(const Matrix<T> &matrix);
+
+    Eigen::SparseMatrix<T> makeSparse(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> &data) const;
+    void makeDense(const Eigen::SparseMatrix<T> &matrix);
 
     Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> data{};
     unsigned long nRows{};
@@ -75,7 +94,7 @@ private:
 
 template <typename T>
 bool Matrix<T>::operator==(const Matrix<T> &matrix) const {
-    return data.isApprox(matrix.data);
+    return data.isApprox(matrix.data, 1E-3);
 }
 
 template<class T>
@@ -116,6 +135,9 @@ void Matrix<T>::transpose() {
 
 template<class T>
 void Matrix<T>::invert() {
+    if (data.isZero()) {
+        return;
+    }
     if (canInvert()) {
         data = data.inverse();
     }
@@ -123,7 +145,11 @@ void Matrix<T>::invert() {
 
 template<class T>
 bool Matrix<T>::canInvert() {
-    return !std::isinf(1 / data.determinant()) ;
+    if (std::isinf(1 / data.determinant())) {
+        std::cerr << "Matrix not invertible. Det: " <<  data.determinant() << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    return true;
 }
 
 template <typename T>
@@ -157,18 +183,32 @@ void Matrix<T>::zeroMatrix() {
 
 template<class T>
 Matrix<T> Matrix<T>::operator*(const Matrix<T> &matrix) const {
-    Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> result = data * matrix.data;
-    return Matrix<T>(result);
+    return Matrix<T>(Eigen::SparseMatrix<T>(makeSparse(data) * makeSparse(matrix.data)));
+}
+
+template<class T>
+void Matrix<T>::operator*=(const float &scalar) {
+    makeDense(Eigen::SparseMatrix<T>(makeSparse(data) *= scalar));
 }
 
 template<class T>
 void Matrix<T>::operator-=(const Matrix<T> &matrix) {
-    data -= matrix.data;
+    makeDense(Eigen::SparseMatrix<T>(makeSparse(data) -= makeSparse(matrix.data)));
 }
 
 template<class T>
 void Matrix<T>::operator+=(const Matrix<T> &matrix) {
-    data += matrix.data;
+    makeDense(Eigen::SparseMatrix<T>(makeSparse(data) += makeSparse(matrix.data)));
+}
+
+template<class T>
+Eigen::SparseMatrix<T> Matrix<T>::makeSparse(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> &denseMatrix) const {
+    return denseMatrix.sparseView();
+}
+
+template<class T>
+void Matrix<T>::makeDense(const Eigen::SparseMatrix<T> &matrix) {
+    data = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>(matrix);
 }
 
 #endif //MULTIAGENTSLAM_MATRIX_H

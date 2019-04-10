@@ -37,36 +37,40 @@ void Seif::motionUpdate(const VELOCITY &velocity) {
 
 POSE Seif::stateEstimateUpdate() {
     Matrix<float> stateEstimate = *this->stateEstimate;
-    this->resolveActiveFeats();
-    this->resolveAllFeats(&stateEstimate);
+    this->integrateActiveFeatures();
+    this->generateStateEstimate(&stateEstimate);
     rPose = {
-        .x = (Equations::getInstance()->isZero(this->stateEstimate->at(X))) ? 0 : this->stateEstimate->at(X),
-        .y = (Equations::getInstance()->isZero(this->stateEstimate->at(Y))) ? 0 : this->stateEstimate->at(Y),
+        .x = Equations::getInstance()->isZero(this->stateEstimate->at(X)) ? 0 : this->stateEstimate->at(X),
+        .y = Equations::getInstance()->isZero(this->stateEstimate->at(Y)) ? 0 : this->stateEstimate->at(Y),
         .theta = Equations::getInstance()->wrapTheta(this->stateEstimate->at(THETA))
     };
     return rPose;
 }
 
-// Is not concerned with whether RAY is below threshold. Thresholding, should
-// be managed by Detection and a ray only passed to when a "valid" detection is made.
+// Must always run regardless of valid detection. Found features still need to
+// updated with new rover estimate.
 void Seif::measurementUpdate(const RAY &incidentRay) {
     FEATURE feature{};
-    this->remodel(feature, incidentRay);
-    if (!this->hasBeenObserved(feature.correspondence)) {
-        this->addFeature(feature);
-        this->organizeFeatures();
+    if (this->isNewFeature(incidentRay)) {
+        this->deriveFeature(feature, incidentRay);
+        if (!this->hasBeenObserved(feature.correspondence)) {
+            this->addFeature(feature);
+            this->organizeFeatures();
+        }
     }
-
-    // Loop through all observed features (active and inactive)
+    Matrix<float> vecSum(N);
+    Matrix<float> matrixSum(N, N);
     for (unsigned long featIdx = 0; featIdx < this->featuresFound; featIdx++) {
         feature = (*this->recordedFeatures)[featIdx];
         this->updateDeltaPos(feature.pose);
         this->update_q();
         this->updateZHat(feature.correspondence);
         this->updateH(featIdx);
-        this->updateEpsilon(feature);
-        this->updateOmega();
+        this->infoVecSummation(&vecSum, feature);
+        this->infoMatrixSummation(&matrixSum);
     }
+    MatrixManipulator::getInstance()->add(&(*this->informationVector), &vecSum);
+    MatrixManipulator::getInstance()->add(&(*this->informationMatrix), &matrixSum);
 }
 
 void Seif::sparsification() {
@@ -77,24 +81,25 @@ void Seif::sparsification() {
 
 void Seif::updateDeltaDel(const VELOCITY &velocity) {
     float ratio;
-    float thetaPrior = this->stateEstimate->at(THETA);;
+    float thetaPrior = rPose.theta;
+    float theta = (float) (velocity.angular * ROS_INTERVAL);
     if (velocity.angular != 0) {
         ratio = velocity.linear / velocity.angular;
-        this->delta->at(X) = (float) (ratio * (sin(thetaPrior + (velocity.angular * ROS_INTERVAL) - sin(thetaPrior))));
-        this->delta->at(Y) = (float) (ratio * (cos(thetaPrior) - cos(thetaPrior + (velocity.angular * ROS_INTERVAL))));
+        this->delta->at(X) = (-1) * ratio * sin(thetaPrior) + ratio * sin(thetaPrior + theta);
+        this->delta->at(Y) = ratio * cos(thetaPrior) - ratio * cos(thetaPrior + theta);
 
-        this->del->at(X, 2) = (float) (ratio * (cos(thetaPrior) - cos(thetaPrior + (velocity.angular * ROS_INTERVAL))));
-        this->del->at(Y, 2) = (float) (ratio * (sin(thetaPrior) - sin(thetaPrior + (velocity.angular * ROS_INTERVAL))));
+        this->del->at(X, 2) = ratio * cos(thetaPrior) - ratio * cos(thetaPrior + theta);
+        this->del->at(Y, 2) = ratio * sin(thetaPrior) - ratio * sin(thetaPrior + theta);
     }
     else {
         ratio = velocity.linear;
-        this->delta->at(X) = (float) (ratio * sin(thetaPrior + (velocity.angular * ROS_INTERVAL)));
-        this->delta->at(Y) = (float) (ratio * cos(thetaPrior + (velocity.angular * ROS_INTERVAL)));
+        this->delta->at(X) = ratio * sin(thetaPrior);
+        this->delta->at(Y) = ratio * cos(thetaPrior);
 
-        this->del->at(X, 2) = (float) (ratio * cos(thetaPrior + (velocity.angular * ROS_INTERVAL)));
-        this->del->at(Y, 2) = (float) (ratio * sin(thetaPrior + (velocity.angular * ROS_INTERVAL)));
+        this->del->at(X, 2) = (-1) * ratio * cos(thetaPrior);
+        this->del->at(Y, 2) = (-1) * ratio * sin(thetaPrior);
     }
-    this->delta->at(THETA) = (float) (velocity.angular * ROS_INTERVAL);
+    this->delta->at(THETA) = theta;
 
     if (this->printMatrices) {
         std::cout << "Delta: " << std::endl;
@@ -111,7 +116,7 @@ void Seif::updatePsi() {
     MatrixManipulator::getInstance()->add(&temp, &(*this->del));
     temp.invert();
     MatrixManipulator::getInstance()->subtract(&temp, &idMat);
-    *this->psi = MatrixManipulator::getInstance()->quadratic(&(*this->F_X), &temp);
+    *this->psi = MatrixManipulator::getInstance()->quadratic(&(*this->F_X), &temp, true);
 
     if (this->printMatrices) {
         std::cout << "PSI:" << std::endl;
@@ -123,7 +128,7 @@ void Seif::updateLambda() {
     Matrix<float> psi_T = *this->psi; psi_T.transpose();
     Matrix<float> prodMat = MatrixManipulator::getInstance()->multiply(&psi_T, &(*this->informationMatrix));
     Matrix<float> otherProdMat = MatrixManipulator::getInstance()->multiply(&(*this->informationMatrix), &(*this->psi));
-    Matrix<float> temp = MatrixManipulator::getInstance()->quadratic(&(*this->psi), &(*this->informationMatrix));
+    Matrix<float> temp = MatrixManipulator::getInstance()->quadratic(&(*this->psi), &(*this->informationMatrix), true);
     MatrixManipulator::getInstance()->add(&prodMat, &otherProdMat);
     MatrixManipulator::getInstance()->add(&prodMat, &temp);
     *this->lambda = prodMat;
@@ -154,7 +159,7 @@ void Seif::updateKappa() {
     MatrixManipulator::getInstance()->add(&R, &quadMat);
     R.invert();
 
-    Matrix<float> quadTemp = MatrixManipulator::getInstance()->quadratic(&(*this->F_X), &R);
+    Matrix<float> quadTemp = MatrixManipulator::getInstance()->quadratic(&(*this->F_X), &R, true);
     Matrix<float> prodMat = MatrixManipulator::getInstance()->multiply(&(*this->phi), &quadTemp);
     *this->kappa = MatrixManipulator::getInstance()->multiply(&prodMat, &(*this->phi));
 
@@ -203,7 +208,7 @@ void Seif::updateMuBar() {
     }
 }
 
-void Seif::resolveActiveFeats() {
+void Seif::integrateActiveFeatures() {
     unsigned long startIdx;
     this->F_I->zeroMatrix();
     for (long i = 0; i < std::fmin(this->featuresFound, this->maxActiveFeatures); i++) {
@@ -213,7 +218,7 @@ void Seif::resolveActiveFeats() {
         }
         startIdx = featIdx(feature->idx);
         this->F_I->at(X, startIdx) = 1;
-        this->F_I->at(Y, startIdx + 1) = 1;
+        this->F_I->at(Y, startIdx + Y) = 1;
 
         Matrix<float> quadMat = MatrixManipulator::getInstance()->quadratic(&(*this->F_I), &(*this->informationMatrix));
         quadMat.invert();
@@ -229,9 +234,9 @@ void Seif::resolveActiveFeats() {
         intrMat = MatrixManipulator::getInstance()->multiply(&intrMat, &(*this->stateEstimate));
 
         MatrixManipulator::getInstance()->add(&infoVec, &intrMat);
-        Matrix<float> stEst = MatrixManipulator::getInstance()->multiply(&outer, &infoVec);
-        this->stateEstimate->at(startIdx) = stEst.at(X);
-        this->stateEstimate->at(startIdx + 1) = stEst.at(Y);
+        Matrix<float> featEst = MatrixManipulator::getInstance()->multiply(&outer, &infoVec);
+        this->stateEstimate->at(startIdx) = featEst.at(X);
+        this->stateEstimate->at(startIdx + Y) = featEst.at(Y);
 
         if (this->printMatrices) {
             std::cout << "State Estimate (Active):" << std::endl;
@@ -240,7 +245,7 @@ void Seif::resolveActiveFeats() {
     }
 }
 
-void Seif::resolveAllFeats(const Matrix<float> *stateEstimate) {
+void Seif::generateStateEstimate(const Matrix<float> *stateEstimate) {
     Matrix<float> quadMat = MatrixManipulator::getInstance()->quadratic(&(*this->F_X), &(*this->informationMatrix));
     quadMat.invert();
     Matrix<float> outer = MatrixManipulator::getInstance()->multiply(&quadMat, &(*this->F_X));
@@ -266,71 +271,21 @@ void Seif::resolveAllFeats(const Matrix<float> *stateEstimate) {
     }
 }
 
-void Seif::updateDeltaPos(const POSE &pose) {
-    this->deltaPosition->at(X) = pose.x - rPose.x;
-    this->deltaPosition->at(Y) = pose.y - rPose.y;
+bool Seif::isNewFeature(const RAY &incidentRay) {
+    return incidentRay.range != -MAXFLOAT && incidentRay.angle != -MAXFLOAT;
 }
 
-void Seif::update_q() {
-    Matrix<float> dp_T = *this->deltaPosition; dp_T.transpose();
-    Matrix<float> resMat = MatrixManipulator::getInstance()->multiply(&dp_T, &(*this->deltaPosition));
-    this->q = resMat.at(0);
-}
-
-void Seif::updateZHat(const float &correspondence) {
-    this->zHat->at(RANGE) = sqrt(this->q);
-    this->zHat->at(ANGLE) = atan2(this->deltaPosition->at(Y), this->deltaPosition->at(X)) - rPose.theta;
-    this->zHat->at(CORRESPONDENCE) = correspondence;
-}
-
-void Seif::updateH(const unsigned long &idx) {
-    this->H->at(X, X) = (sqrt(this->q) * this->deltaPosition->at(X)) / this->q;
-    this->H->at(X, Y) = ((-1) * sqrt(this->q) * this->deltaPosition->at(Y)) / this->q;
-    this->H->at(Y, X) = (this->deltaPosition->at(Y)) / this->q;
-    this->H->at(Y, Y) = (this->deltaPosition->at(X)) / this->q;
-    this->H->at(Y, 2) = (-1) / this->q;
-
-    unsigned long startIdx = featIdx(idx);
-
-    this->H->at(X, startIdx + X) = ((-1) * sqrt(this->q) * this->deltaPosition->at(X)) / this->q;
-    this->H->at(X, startIdx + Y) = (sqrt(this->q) * this->deltaPosition->at(Y)) / this->q;
-    this->H->at(Y, startIdx + X) = ((-1) * this->deltaPosition->at(Y)) / this->q;
-    this->H->at(Y, startIdx + Y) = ((-1) * this->deltaPosition->at(X)) / this->q;
-    this->H->at(2, startIdx + 2) = (1) / this->q;
-}
-
-void Seif::updateEpsilon(const FEATURE &feature) {
-    Matrix<float> stateEstimate = *this->stateEstimate;
-    Matrix<float> prodMat = MatrixManipulator::getInstance()->multiply(&(*this->H), &stateEstimate);
-
-    Matrix<float> z_i{feature.incidentRay.range, feature.incidentRay.angle, feature.correspondence};
-    MatrixManipulator::getInstance()->subtract(&z_i, &(*this->zHat));
-    MatrixManipulator::getInstance()->subtract(&z_i, &prodMat);
-
-    Matrix<float> Q_inv = *this->measurementCov; Q_inv.invert();
-    Matrix<float> H_T = *this->H; H_T.transpose();
-    z_i = MatrixManipulator::getInstance()->multiply(&Q_inv, &z_i);
-    stateEstimate = MatrixManipulator::getInstance()->multiply(&H_T, &z_i);
-    MatrixManipulator::getInstance()->add(&(*this->informationVector), &stateEstimate);
-}
-
-void Seif::updateOmega() {
-    Matrix<float> Q_inv = *this->measurementCov; Q_inv.invert();
-    Matrix<float> infoMat = MatrixManipulator::getInstance()->quadratic(&(*this->H), &Q_inv); /** Q is already in inverse form. */
-    MatrixManipulator::getInstance()->add(&(*this->informationMatrix), &infoMat);
-}
-
-void Seif::remodel(FEATURE &feature, const RAY &incidentRay) {
+void Seif::deriveFeature(FEATURE &feature, const RAY &incidentRay) {
     std::array<float, 2> xyCoords = Equations::getInstance()->originToPoint(
             incidentRay,
             {rPose.x, rPose.y, rPose.theta},
-            false); // true
+            true); // true
 
     feature.incidentRay = incidentRay;
     feature.pose = {.x = xyCoords[X], .y = xyCoords[Y]};
     feature.correspondence = Equations::getInstance()->normalizeValue(
             Equations::getInstance()->cantor(xyCoords[X], xyCoords[Y]),
-            0, this->maxFeatures
+            0, this->maxCorrespondence
     );
 }
 
@@ -345,7 +300,7 @@ void Seif::remodel(FEATURE &feature, const RAY &incidentRay) {
  */
 bool Seif::hasBeenObserved(const float &correspondence) {
     u_long front = 0;
-    u_long back = this->featuresFound;
+    u_long back = this->featuresFound ? this->featuresFound - 1 : 0;
 
     if (!this->featuresFound) {
         return false;
@@ -353,14 +308,19 @@ bool Seif::hasBeenObserved(const float &correspondence) {
     if (this->featuresFound < 2) {
         return EQUIV == comparison(correspondence, (*this->recordedFeatures)[front].correspondence);
     }
-    while(front <= back) {
-        unsigned long position = (front && back) ? front + (back - 1) / 2 : 0;
+
+    bool finished = false;
+    do {
+        unsigned long position = (u_long) ((front && back) ? floor((front + back) / 2) : 0);
         relation section = comparison(correspondence, (*this->recordedFeatures)[position].correspondence);
         switch (section) {
             case EQUIV:
                 return true;
             case LOWER:
-                back = position ? --position : 0;
+                if (!position) {
+                    finished = true;
+                }
+                back = --position;
                 break;
             case HIGHER:
                 front = ++position;
@@ -369,7 +329,8 @@ bool Seif::hasBeenObserved(const float &correspondence) {
                 std::cout << "Error: bad feature identifier comparison <" << section << ">" << std::endl;
                 exit(EXIT_FAILURE);
         }
-    }
+    } while (front <= back && !finished);
+
     return false;
 }
 
@@ -381,12 +342,10 @@ void Seif::addFeature(FEATURE &feature) {
     }
     (*this->activeFeatures)[idx] = feature;
     (*this->recordedFeatures)[this->nextFeatureIndex()++] = feature;
-
-    // TODO: maybe should mark feature on info mat and vec
 }
 
 u_long &Seif::nextFeatureIndex() {
-    if (this->featuresFound < this->maxActiveFeatures) {
+    if (this->featuresFound < this->maxFeatures) {
         return this->featuresFound;
     }
     perror("Maximum number of features observed. Consider allowing more observed features : 'maxFeatures'.");
@@ -396,8 +355,8 @@ u_long &Seif::nextFeatureIndex() {
 void Seif::organizeFeatures() {
     if (this->featuresFound > 1) {
         auto endPtr_active = (this->isActiveFull() ?
-                this->activeFeatures->end() :
-                this->activeFeatures->begin() + this->featuresFound);
+                              this->activeFeatures->end() :
+                              this->activeFeatures->begin() + this->featuresFound);
         std::sort(this->activeFeatures->begin(), endPtr_active, distanceSort);
 
         auto endPtr_all = this->recordedFeatures->begin() + this->featuresFound;
@@ -413,34 +372,93 @@ bool Seif::isActiveFull() {
     return this->featuresFound >= this->maxActiveFeatures;
 }
 
+void Seif::updateDeltaPos(const POSE &featPose) {
+    this->deltaPosition->at(X) = featPose.x - rPose.x;
+    this->deltaPosition->at(Y) = featPose.y - rPose.y;
+}
+
+void Seif::update_q() {
+    Matrix<float> dp_T = *this->deltaPosition; dp_T.transpose();
+    Matrix<float> resMat = MatrixManipulator::getInstance()->multiply(&dp_T, &(*this->deltaPosition));
+    this->q = resMat.at(0);
+}
+
+void Seif::updateZHat(const float &correspondence) {
+    this->zHat->at(RANGE) = sqrt(this->q);
+    this->zHat->at(ANGLE) = atan2(this->deltaPosition->at(Y), this->deltaPosition->at(X)) - rPose.theta;
+    this->zHat->at(CORRESPONDENCE) = correspondence;
+}
+
+void Seif::updateH(const unsigned long &idx) {
+    this->H->at(X, X) = sqrt(this->q) * this->deltaPosition->at(X);
+    this->H->at(X, Y) = (-1) * sqrt(this->q) * this->deltaPosition->at(Y);
+    this->H->at(Y, X) = this->deltaPosition->at(Y);
+    this->H->at(Y, Y) = this->deltaPosition->at(X);
+    this->H->at(Y, 2) = -1;
+
+    unsigned long startIdx = featIdx(idx);
+
+    this->H->at(X, startIdx + X) = (-1) * sqrt(this->q) * this->deltaPosition->at(X);
+    this->H->at(X, startIdx + Y) = sqrt(this->q) * this->deltaPosition->at(Y);
+    this->H->at(Y, startIdx + X) = (-1) * this->deltaPosition->at(Y);
+    this->H->at(Y, startIdx + Y) = (-1) * this->deltaPosition->at(X);
+    this->H->at(2, startIdx + 2) = 1;
+
+    MatrixManipulator::getInstance()->scalarMult(&(*this->H), (1 / this->q));
+}
+
+void Seif::infoVecSummation(Matrix<float> *infoVec, const FEATURE &feature) {
+    Matrix<float> stateEstimate = *this->stateEstimate;
+    Matrix<float> prodMat = MatrixManipulator::getInstance()->multiply(&(*this->H), &stateEstimate);
+
+    Matrix<float> z_i{{feature.incidentRay.range}, {feature.incidentRay.angle}, {feature.correspondence}};
+    MatrixManipulator::getInstance()->subtract(&z_i, &(*this->zHat));
+    MatrixManipulator::getInstance()->subtract(&z_i, &prodMat);
+
+    Matrix<float> Q_inv = *this->measurementCov; Q_inv.invert();
+    Matrix<float> H_T = *this->H; H_T.transpose();
+    Matrix<float> temp = MatrixManipulator::getInstance()->multiply(&H_T, &Q_inv);
+    *infoVec = MatrixManipulator::getInstance()->multiply(&temp, &z_i);
+}
+
+void Seif::infoMatrixSummation(Matrix<float> *infoMatrix) {
+    Matrix<float> Q_inv = *this->measurementCov; Q_inv.invert();
+    *infoMatrix = MatrixManipulator::getInstance()->quadratic(&(*this->H), &Q_inv, true);
+}
+
+
+
 void Seif::updateInformationMatrix() {
-    Matrix<float> m0 = this->defineProjection(&(this->toDeactivate->idx), false);
-    Matrix<float> xm0 = this->defineProjection(&(this->toDeactivate->idx));
-    this->makeInactive(&(*this->toDeactivate));
+    Matrix<float> m0_T = this->defineProjection(&(*this->toDeactivate), false); m0_T.transpose();
+    Matrix<float> xm0_T = this->defineProjection(&(*this->toDeactivate)); xm0_T.transpose();
+    Matrix<float> fx_T = *this->F_X; fx_T.transpose();
+    if (this->toDeactivate->correspondence >= 0) {
+        this->makeInactive(&(*this->toDeactivate));
+    }
 
     // F_m_0
-    Matrix<float> infoM0 = this->resolveProjection(&m0);
+    Matrix<float> infoM0 = this->resolveProjection(&m0_T);
     // F_x,m_0
-    Matrix<float> infoXM0 = this->resolveProjection(&xm0);
+    Matrix<float> infoXM0 = this->resolveProjection(&xm0_T);
     // F_x
-    Matrix<float> infoX = this->resolveProjection(&(*this->F_X));
+    Matrix<float> infoX = this->resolveProjection(&fx_T);
 
-    Matrix<float> infoMatrix = *this->informationMatrix;
-    MatrixManipulator::getInstance()->subtract(&infoMatrix, &infoM0);
-    MatrixManipulator::getInstance()->add(&infoMatrix, &infoXM0);
-    MatrixManipulator::getInstance()->subtract(&infoMatrix, &infoX);
-    *this->informationMatrix = infoMatrix;
+    MatrixManipulator::getInstance()->subtract(&(*this->informationMatrix), &infoM0);
+    MatrixManipulator::getInstance()->add(&(*this->informationMatrix), &infoXM0);
+    MatrixManipulator::getInstance()->subtract(&(*this->informationMatrix), &infoX);
 }
 
 void Seif::updateInformationVector(const Matrix<float> *prevInfoMat) {
     Matrix<float> infoMat = *this->informationMatrix;
+    Matrix<float> stateEst_T = *this->stateEstimate; stateEst_T.transpose();
     MatrixManipulator::getInstance()->subtract(&infoMat, prevInfoMat);
-    Matrix<float> res = MatrixManipulator::getInstance()->multiply(&(*this->stateEstimate), &infoMat);
+    Matrix<float> res = MatrixManipulator::getInstance()->multiply(&stateEst_T, &infoMat);
+    res.transpose();
     MatrixManipulator::getInstance()->add(&(*this->informationVector), &res);
 }
 
 Matrix<float> Seif::resolveProjection(const Matrix<float> *projection) {
-    Matrix<float> quadMat = MatrixManipulator::getInstance()->quadratic(projection, &(*this->informationMatrix));
+    Matrix<float> quadMat = MatrixManipulator::getInstance()->quadratic(projection, &(*this->informationMatrix), true);
     quadMat.invert();
 
     Matrix<float> intr = MatrixManipulator::getInstance()->quadratic(projection, &quadMat);
@@ -448,25 +466,25 @@ Matrix<float> Seif::resolveProjection(const Matrix<float> *projection) {
     return MatrixManipulator::getInstance()->multiply(&leftHS, &(*this->informationMatrix));
 }
 
-Matrix<float> Seif::defineProjection(const unsigned long *idx, const bool &includePose) {
+Matrix<float> Seif::defineProjection(const FEATURE *feat, const bool &includePose) {
     Matrix<float> projection(this->F_X->numRows(), this->F_X->numCols());
     if (includePose) {
         projection.at(X, X) = 1;
         projection.at(Y, Y) = 1;
         projection.at(THETA, THETA) = 1;
     }
-    if (idx) {
-        unsigned long startIdx = featIdx(*idx);
+    if (feat->correspondence >= 0) {
+        unsigned long startIdx = featIdx(feat->idx);
         projection.at(X, startIdx) = 1;
         projection.at(Y, startIdx + Y) = 1;
-        projection.at(2, startIdx + 2) = 1;
+        projection.at(CORRESPONDENCE, startIdx + CORRESPONDENCE) = 1;
     }
 
     return projection;
 }
 
 void Seif::makeInactive(FEATURE *toDeact) {
-    toDeact = nullptr;
+    toDeact->correspondence = -MAXFLOAT;
 }
 
 Matrix<float> Seif::identity(const unsigned long &size) {

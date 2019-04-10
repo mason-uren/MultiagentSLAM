@@ -10,8 +10,8 @@ std::array<float, 2> Equations::originToPoint(const RAY &ray,
         const std::array<float, 3> &pose,
         const bool &orthogonal) {
     return {
-            (ray.range * sin(pose[THETA] + ray.angle) + (orthogonal ? pose[Y] : pose[X])),
-            (ray.range * cos(pose[THETA] + ray.angle) + (orthogonal ? pose[X] : pose[Y]))
+            (ray.range * sin(pose[THETA] + ray.angle)) + (orthogonal ? pose[Y] : pose[X]),
+            (ray.range * cos(pose[THETA] + ray.angle)) + (orthogonal ? pose[X] : pose[Y])
     };
 }
 
@@ -67,5 +67,5 @@ float Equations::distBetweenPts(const POSE &pose, const POSE &other) {
 }
 
 bool Equations::isZero(const float &value) {
-    return fabs(value) < 1E-3;
+    return fabs(value) < 1E-4;
 }

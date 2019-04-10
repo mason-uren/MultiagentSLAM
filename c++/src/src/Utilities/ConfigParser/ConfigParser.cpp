@@ -47,8 +47,10 @@ void ConfigParser::parseConfig(SYS_CONFIG_IN *in, json *dataPtr) {
                 seifConfig->maxActiveFeatures =
                         data["slamConfig"]["seif"]["maxActiveFeatures"].get<int>();
                 seifConfig->featureDistInM = data["slamConfig"]["seif"]["featureDistInM"].get<float>();
-                seifConfig->R = data["slamConfig"]["seif"]["R"].get<float>();
-                seifConfig->Q = data["slamConfig"]["seif"]["Q"].get<float>();
+                for (int i = 0; i < ELEMENT_SIZE; i++) {
+                    seifConfig->R[i] = data["slamConfig"]["seif"]["R"][i].get<float>();
+                    seifConfig->Q[i] = data["slamConfig"]["seif"]["Q"][i].get<float>();
+                }
                 seifConfig->maxFeatures = slamConfig->maxFeatures;
             }
             else {

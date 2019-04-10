@@ -39,11 +39,6 @@ enum class node_color {
     RED
 };
 
-enum class descriptor {
-    STATE_ESTIMATE = 0,
-    FOUND_FEATURE
-};
-
 enum class sonar_id {
     LEFT = 0,
     CENTER,

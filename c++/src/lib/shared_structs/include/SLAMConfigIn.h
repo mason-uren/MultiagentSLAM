@@ -16,8 +16,8 @@ typedef struct {
     int maxActiveFeatures{};
     unsigned long maxFeatures{};
     float featureDistInM{};
-    float R{};
-    float Q{};
+    float R[3]{};
+    float Q[3]{};
 } SEIF_CONFIG;
 
 typedef struct {
