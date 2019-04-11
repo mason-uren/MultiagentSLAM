@@ -13,7 +13,6 @@ add_subdirectory(src/lib/nholmann_json)
 add_subdirectory(src/lib/shared_structs)
 add_subdirectory(src/lib/interfaces)
 add_subdirectory(src/lib/templates)
-add_subdirectory(src/lib/tools)
 
 set(DIR_MACRO ${CMAKE_CURRENT_LIST_DIR}/src/src/)
 set(
@@ -41,8 +40,6 @@ target_include_directories(${PROJECT_NAME}
         PRIVATE src/lib/interfaces/include
         PRIVATE src/lib/templates/include/Filters
         PRIAVTE src/lib/templates/include/Matrix
-        PRIVATE src/lib/templates/include/MatrixManipulator
-        PRIVATE src/lib/tools/include
 )
 
 target_link_libraries(${PROJECT_NAME}

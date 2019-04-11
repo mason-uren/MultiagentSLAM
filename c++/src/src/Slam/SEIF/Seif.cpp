@@ -66,11 +66,9 @@ void Seif::measurementUpdate(const RAY &incidentRay) {
         this->update_q();
         this->updateZHat(feature.correspondence);
         this->updateH(featIdx);
-        this->infoVecSummation(&vecSum, feature);
-        this->infoMatrixSummation(&matrixSum);
+        this->infoVecSummation(feature);
+        this->infoMatrixSummation();
     }
-    MatrixManipulator::getInstance()->add(&(*this->informationVector), &vecSum);
-    MatrixManipulator::getInstance()->add(&(*this->informationMatrix), &matrixSum);
 }
 
 void Seif::sparsification() {
@@ -110,13 +108,10 @@ void Seif::updateDeltaDel(const VELOCITY &velocity) {
 }
 
 void Seif::updatePsi() {
-    Matrix<float> idMat = this->identity(this->del->numRows());
-    Matrix<float> temp = idMat;
-
-    MatrixManipulator::getInstance()->add(&temp, &(*this->del));
-    temp.invert();
-    MatrixManipulator::getInstance()->subtract(&temp, &idMat);
-    *this->psi = MatrixManipulator::getInstance()->quadratic(&(*this->F_X), &temp, true);
+    Matrix<float> idMat(this->del->numRows(), this->del->numRows()); idMat.identity();
+    Matrix<float> fx_T = *this->F_X; fx_T.transpose();
+    Matrix<float> inverse = (idMat + *this->del); inverse.invert();
+    *this->psi = fx_T * (inverse - idMat) * *this->F_X;
 
     if (this->printMatrices) {
         std::cout << "PSI:" << std::endl;
@@ -126,12 +121,9 @@ void Seif::updatePsi() {
 
 void Seif::updateLambda() {
     Matrix<float> psi_T = *this->psi; psi_T.transpose();
-    Matrix<float> prodMat = MatrixManipulator::getInstance()->multiply(&psi_T, &(*this->informationMatrix));
-    Matrix<float> otherProdMat = MatrixManipulator::getInstance()->multiply(&(*this->informationMatrix), &(*this->psi));
-    Matrix<float> temp = MatrixManipulator::getInstance()->quadratic(&(*this->psi), &(*this->informationMatrix), true);
-    MatrixManipulator::getInstance()->add(&prodMat, &otherProdMat);
-    MatrixManipulator::getInstance()->add(&prodMat, &temp);
-    *this->lambda = prodMat;
+    *this->lambda = psi_T * *this->informationMatrix +
+            *this->informationMatrix * *this->phi +
+            psi_T * *this->informationMatrix * *this->phi;
 
     if (this->printMatrices) {
         std::cout << "Lambda:" << std::endl;
@@ -140,9 +132,7 @@ void Seif::updateLambda() {
 }
 
 void Seif::updatePhi() {
-    Matrix<float> infoMat = *this->informationMatrix;
-    MatrixManipulator::getInstance()->add(&infoMat, &(*this->lambda));
-    *this->phi = infoMat;
+    *this->phi = *this->informationMatrix + *this->lambda;
 
     if (this->printMatrices) {
         std::cout << "PHI:" << std::endl;
@@ -151,17 +141,10 @@ void Seif::updatePhi() {
 }
 
 void Seif::updateKappa() {
-    Matrix<float> quadMat = MatrixManipulator::getInstance()->quadratic(&(*this->F_X), &(*this->phi));
-
-    Matrix<float> R = *this->motionCov;
-    R.invert();
-
-    MatrixManipulator::getInstance()->add(&R, &quadMat);
-    R.invert();
-
-    Matrix<float> quadTemp = MatrixManipulator::getInstance()->quadratic(&(*this->F_X), &R, true);
-    Matrix<float> prodMat = MatrixManipulator::getInstance()->multiply(&(*this->phi), &quadTemp);
-    *this->kappa = MatrixManipulator::getInstance()->multiply(&prodMat, &(*this->phi));
+    Matrix<float> fx_T = *this->F_X; fx_T.transpose();
+    Matrix<float> R_inv = *this->motionCov; R_inv.invert();
+    Matrix<float> inverse = (R_inv + *this->F_X * *this->phi * fx_T); inverse.invert();
+    *this->kappa = *this->phi * fx_T * inverse * *this->F_X * *this->phi;
 
     if (this->printMatrices) {
         std::cout << "Kappa:" << std::endl;
@@ -170,9 +153,8 @@ void Seif::updateKappa() {
 }
 
 void Seif::updateOmegaBar() {
-    Matrix<float> temp = *this->phi;
-    MatrixManipulator::getInstance()->subtract(&temp, &(*this->kappa));
-    *this->informationMatrix = temp;
+    *this->phi -= *this->kappa;
+    *this->informationMatrix = *this->phi;
 
     if (this->printMatrices) {
         std::cout << "Info Mat:" << std::endl;
@@ -181,15 +163,10 @@ void Seif::updateOmegaBar() {
 }
 
 void Seif::updateEpsilonBar() {
-    Matrix<float> temp = *this->lambda;
-    MatrixManipulator::getInstance()->subtract(&temp, &(*this->kappa));
-    temp = MatrixManipulator::getInstance()->multiply(&temp, &(*this->stateEstimate));
-
     Matrix<float> fx_T = *this->F_X; fx_T.transpose();
-    Matrix<float> prodMat = MatrixManipulator::getInstance()->multiply(&(*this->informationMatrix), &fx_T);
-    Matrix<float> otherProdMat = MatrixManipulator::getInstance()->multiply(&prodMat, &(*this->delta));
-    MatrixManipulator::getInstance()->add(&(*this->informationVector), &temp);
-    MatrixManipulator::getInstance()->add(&(*this->informationVector), &otherProdMat);
+    *this->informationVector +=
+            ((*this->lambda - *this->kappa) * *this->stateEstimate +
+            (*this->informationMatrix * fx_T * *this->delta));
 
     if (this->printMatrices) {
         std::cout << "Info Vec: " << std::endl;
@@ -199,8 +176,7 @@ void Seif::updateEpsilonBar() {
 
 void Seif::updateMuBar() {
     Matrix<float> fx_T = *this->F_X; fx_T.transpose();
-    Matrix<float> prodMat = MatrixManipulator::getInstance()->multiply(&fx_T, &(*this->delta));
-    MatrixManipulator::getInstance()->add(&(*this->stateEstimate), &prodMat);
+    *this->stateEstimate += fx_T * *this->delta;
 
     if (this->printMatrices) {
         std::cout << "State estimate: " << std::endl;
@@ -211,32 +187,25 @@ void Seif::updateMuBar() {
 void Seif::integrateActiveFeatures() {
     unsigned long startIdx;
     this->F_I->zeroMatrix();
+    Matrix<float> resVec(this->informationVector->numRows());
+
     for (long i = 0; i < std::fmin(this->featuresFound, this->maxActiveFeatures); i++) {
         FEATURE *feature = &((*this->activeFeatures)[i]);
         if (!feature) {
             break;
         }
+
         startIdx = featIdx(feature->idx);
         this->F_I->at(X, startIdx) = 1;
         this->F_I->at(Y, startIdx + Y) = 1;
 
-        Matrix<float> quadMat = MatrixManipulator::getInstance()->quadratic(&(*this->F_I), &(*this->informationMatrix));
-        quadMat.invert();
-        Matrix<float> outer = MatrixManipulator::getInstance()->multiply(&quadMat, &(*this->F_I));
-
-        Matrix<float> infoVec = *this->informationVector;
-        Matrix<float> prodMat = MatrixManipulator::getInstance()->multiply(&(*this->informationMatrix), &(*this->stateEstimate));
-        MatrixManipulator::getInstance()->subtract(&infoVec, &prodMat);
-
         Matrix<float> fi_T = *this->F_I; fi_T.transpose();
-        Matrix<float> intrMat = MatrixManipulator::getInstance()->multiply(&(*this->informationMatrix), &fi_T);
-        intrMat = MatrixManipulator::getInstance()->multiply(&intrMat, &(*this->F_I));
-        intrMat = MatrixManipulator::getInstance()->multiply(&intrMat, &(*this->stateEstimate));
-
-        MatrixManipulator::getInstance()->add(&infoVec, &intrMat);
-        Matrix<float> featEst = MatrixManipulator::getInstance()->multiply(&outer, &infoVec);
-        this->stateEstimate->at(startIdx) = featEst.at(X);
-        this->stateEstimate->at(startIdx + Y) = featEst.at(Y);
+        Matrix<float> inverse = (*this->F_I * *this->informationMatrix * fi_T); inverse.invert();
+        resVec = inverse * *this->F_I *
+                (*this->informationVector - *this->informationMatrix * *this->stateEstimate +
+                *this->informationMatrix * fi_T * *this->F_I * *this->stateEstimate);
+        this->stateEstimate->at(startIdx) = resVec.at(X);
+        this->stateEstimate->at(startIdx + Y) = resVec.at(Y);
 
         if (this->printMatrices) {
             std::cout << "State Estimate (Active):" << std::endl;
@@ -246,24 +215,15 @@ void Seif::integrateActiveFeatures() {
 }
 
 void Seif::generateStateEstimate(const Matrix<float> *stateEstimate) {
-    Matrix<float> quadMat = MatrixManipulator::getInstance()->quadratic(&(*this->F_X), &(*this->informationMatrix));
-    quadMat.invert();
-    Matrix<float> outer = MatrixManipulator::getInstance()->multiply(&quadMat, &(*this->F_X));
-
-    Matrix<float> infoVec = *this->informationVector;
-    Matrix<float> prodMat = MatrixManipulator::getInstance()->multiply(&(*this->informationMatrix), stateEstimate);
-    MatrixManipulator::getInstance()->subtract(&infoVec, &prodMat);
-
+    Matrix<float> resVec(this->informationVector->numRows());
     Matrix<float> fx_T = *this->F_X; fx_T.transpose();
-    Matrix<float> intrMat = MatrixManipulator::getInstance()->multiply(&(*this->informationMatrix), &fx_T);
-    intrMat = MatrixManipulator::getInstance()->multiply(&intrMat, &(*this->F_X));
-    intrMat = MatrixManipulator::getInstance()->multiply(&intrMat, stateEstimate);
-
-    MatrixManipulator::getInstance()->add(&infoVec, &intrMat);
-    Matrix<float> stEst = MatrixManipulator::getInstance()->multiply(&outer, &infoVec);
-    this->stateEstimate->at(X) = stEst.at(X);
-    this->stateEstimate->at(Y) = stEst.at(Y);
-    this->stateEstimate->at(THETA) = stEst.at(THETA);
+    Matrix<float> inverse = (*this->F_X * *this->informationMatrix * fx_T); inverse.invert();
+    resVec = inverse * *this->F_X *
+             (*this->informationVector - *this->informationMatrix * *stateEstimate +
+              *this->informationMatrix * fx_T * *this->F_X * *stateEstimate);
+    this->stateEstimate->at(X) = resVec.at(X);
+    this->stateEstimate->at(Y) = resVec.at(Y);
+    this->stateEstimate->at(THETA) = resVec.at(THETA);
 
     if (this->printMatrices) {
         std::cout << "State Estimate (All):" << std::endl;
@@ -379,8 +339,7 @@ void Seif::updateDeltaPos(const POSE &featPose) {
 
 void Seif::update_q() {
     Matrix<float> dp_T = *this->deltaPosition; dp_T.transpose();
-    Matrix<float> resMat = MatrixManipulator::getInstance()->multiply(&dp_T, &(*this->deltaPosition));
-    this->q = resMat.at(0);
+    this->q = (dp_T * *this->deltaPosition).at(0);
 }
 
 void Seif::updateZHat(const float &correspondence) {
@@ -404,26 +363,20 @@ void Seif::updateH(const unsigned long &idx) {
     this->H->at(Y, startIdx + Y) = (-1) * this->deltaPosition->at(X);
     this->H->at(2, startIdx + 2) = 1;
 
-    MatrixManipulator::getInstance()->scalarMult(&(*this->H), (1 / this->q));
+    *this->H *= (1 / this->q);
 }
 
-void Seif::infoVecSummation(Matrix<float> *infoVec, const FEATURE &feature) {
-    Matrix<float> stateEstimate = *this->stateEstimate;
-    Matrix<float> prodMat = MatrixManipulator::getInstance()->multiply(&(*this->H), &stateEstimate);
-
+void Seif::infoVecSummation(const FEATURE &feature) {
     Matrix<float> z_i{{feature.incidentRay.range}, {feature.incidentRay.angle}, {feature.correspondence}};
-    MatrixManipulator::getInstance()->subtract(&z_i, &(*this->zHat));
-    MatrixManipulator::getInstance()->subtract(&z_i, &prodMat);
-
-    Matrix<float> Q_inv = *this->measurementCov; Q_inv.invert();
     Matrix<float> H_T = *this->H; H_T.transpose();
-    Matrix<float> temp = MatrixManipulator::getInstance()->multiply(&H_T, &Q_inv);
-    *infoVec = MatrixManipulator::getInstance()->multiply(&temp, &z_i);
+    Matrix<float> Q_inv = *this->measurementCov; Q_inv.invert();
+    *this->informationVector += H_T * Q_inv * (z_i - *this->zHat - *this->H * *this->stateEstimate);
 }
 
-void Seif::infoMatrixSummation(Matrix<float> *infoMatrix) {
+void Seif::infoMatrixSummation() {
+    Matrix<float> H_T = *this->H; H_T.transpose();
     Matrix<float> Q_inv = *this->measurementCov; Q_inv.invert();
-    *infoMatrix = MatrixManipulator::getInstance()->quadratic(&(*this->H), &Q_inv, true);
+    *this->informationMatrix += H_T * Q_inv * *this->H;
 }
 
 
@@ -436,34 +389,17 @@ void Seif::updateInformationMatrix() {
         this->makeInactive(&(*this->toDeactivate));
     }
 
-    // F_m_0
-    Matrix<float> infoM0 = this->resolveProjection(&m0_T);
-    // F_x,m_0
-    Matrix<float> infoXM0 = this->resolveProjection(&xm0_T);
-    // F_x
-    Matrix<float> infoX = this->resolveProjection(&fx_T);
-
-    MatrixManipulator::getInstance()->subtract(&(*this->informationMatrix), &infoM0);
-    MatrixManipulator::getInstance()->add(&(*this->informationMatrix), &infoXM0);
-    MatrixManipulator::getInstance()->subtract(&(*this->informationMatrix), &infoX);
+    *this->informationMatrix -= this->resolveProjection(&m0_T) + this->resolveProjection(&xm0_T) - this->resolveProjection(&fx_T);
 }
 
 void Seif::updateInformationVector(const Matrix<float> *prevInfoMat) {
-    Matrix<float> infoMat = *this->informationMatrix;
-    Matrix<float> stateEst_T = *this->stateEstimate; stateEst_T.transpose();
-    MatrixManipulator::getInstance()->subtract(&infoMat, prevInfoMat);
-    Matrix<float> res = MatrixManipulator::getInstance()->multiply(&stateEst_T, &infoMat);
-    res.transpose();
-    MatrixManipulator::getInstance()->add(&(*this->informationVector), &res);
+    *this->informationVector += (*this->informationMatrix - *prevInfoMat) * *this->stateEstimate;
 }
 
 Matrix<float> Seif::resolveProjection(const Matrix<float> *projection) {
-    Matrix<float> quadMat = MatrixManipulator::getInstance()->quadratic(projection, &(*this->informationMatrix), true);
-    quadMat.invert();
-
-    Matrix<float> intr = MatrixManipulator::getInstance()->quadratic(projection, &quadMat);
-    Matrix<float> leftHS = MatrixManipulator::getInstance()->multiply(&(*this->informationMatrix), &intr);
-    return MatrixManipulator::getInstance()->multiply(&leftHS, &(*this->informationMatrix));
+    Matrix<float> p_T = *projection; p_T.transpose();
+    Matrix<float> inverse = p_T * *this->informationMatrix * *projection; inverse.invert();
+    return *this->informationMatrix * *projection * inverse * p_T * *this->informationMatrix;
 }
 
 Matrix<float> Seif::defineProjection(const FEATURE *feat, const bool &includePose) {
@@ -485,14 +421,6 @@ Matrix<float> Seif::defineProjection(const FEATURE *feat, const bool &includePos
 
 void Seif::makeInactive(FEATURE *toDeact) {
     toDeact->correspondence = -MAXFLOAT;
-}
-
-Matrix<float> Seif::identity(const unsigned long &size) {
-    Matrix<float> matrix(size, size);
-    for (u_long i = 0; i < size; i++) {
-        matrix.at(i, i) = 1;
-    }
-    return matrix;
 }
 
 /**
