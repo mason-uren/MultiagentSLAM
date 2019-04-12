@@ -13,6 +13,7 @@
 
 typedef struct {
     bool valid{};
+    bool singleAgent{};
     int maxActiveFeatures{};
     unsigned long maxFeatures{};
     float featureDistInM{};

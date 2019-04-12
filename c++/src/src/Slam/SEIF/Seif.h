@@ -37,6 +37,7 @@ inline constexpr unsigned long featIdx(const unsigned long &idx) { return 3 * id
 class Seif {
 public:
     explicit Seif(SEIF_CONFIG *seifConfig) :
+        singleAgent(seifConfig->singleAgent),
         N(ELEMENT_SIZE + (ELEMENT_SIZE * seifConfig->maxFeatures)),
         featuresFound(0),
         maxFeatures(seifConfig->maxFeatures),
@@ -138,6 +139,7 @@ private:
      */
     static POSE rPose;
 
+    bool singleAgent;
     const unsigned long N;
     unsigned long featuresFound;
     unsigned long maxFeatures;

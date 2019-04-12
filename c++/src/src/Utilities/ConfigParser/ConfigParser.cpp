@@ -44,6 +44,7 @@ void ConfigParser::parseConfig(SYS_CONFIG_IN *in, json *dataPtr) {
             seifConfig = &(slamConfig->seifConfig);
             if (!data["slamConfig"]["seif"].is_null()) {
                 seifConfig->valid = true;
+                seifConfig->singleAgent = data["slamConfig"]["singleAgent"].get<bool>();
                 seifConfig->maxActiveFeatures =
                         data["slamConfig"]["seif"]["maxActiveFeatures"].get<int>();
                 seifConfig->featureDistInM = data["slamConfig"]["seif"]["featureDistInM"].get<float>();

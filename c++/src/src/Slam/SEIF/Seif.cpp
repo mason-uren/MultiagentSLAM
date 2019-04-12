@@ -15,11 +15,6 @@ void Seif::printRoverPose() {
 }
 
 void Seif::motionUpdate(const VELOCITY &velocity) {
-    if (this->printMatrices) {
-        std::cout << "F_X:" << std::endl;
-        this->F_X->print();
-    }
-
     this->updateDeltaDel(velocity);
     this->updatePsi();
     this->updateLambda();
@@ -111,11 +106,6 @@ void Seif::updatePsi() {
     Matrix<float> fx_T(*this->F_X); fx_T.transpose();
     Matrix<float> inverse((idMat + *this->del)); inverse.invert();
     *this->psi = fx_T * (inverse - idMat) * *this->F_X;
-
-    if (this->printMatrices) {
-        std::cout << "PSI:" << std::endl;
-        this->psi->print();
-    }
 }
 
 void Seif::updateLambda() {
@@ -123,20 +113,10 @@ void Seif::updateLambda() {
     *this->lambda = psi_T * *this->informationMatrix +
             *this->informationMatrix * *this->phi +
             psi_T * *this->informationMatrix * *this->phi;
-
-    if (this->printMatrices) {
-        std::cout << "Lambda:" << std::endl;
-        this->lambda->print();
-    }
 }
 
 void Seif::updatePhi() {
     *this->phi = *this->informationMatrix + *this->lambda;
-
-    if (this->printMatrices) {
-        std::cout << "PHI:" << std::endl;
-        this->phi->print();
-    }
 }
 
 void Seif::updateKappa() {
@@ -144,21 +124,11 @@ void Seif::updateKappa() {
     auto R_inv(*this->motionCov); R_inv.invert();
     auto inverse(R_inv + *this->F_X * *this->phi * fx_T); inverse.invert();
     *this->kappa = *this->phi * fx_T * inverse * *this->F_X * *this->phi;
-
-    if (this->printMatrices) {
-        std::cout << "Kappa:" << std::endl;
-        this->kappa->print();
-    }
 }
 
 void Seif::updateOmegaBar() {
     *this->phi -= *this->kappa;
     *this->informationMatrix = *this->phi;
-
-    if (this->printMatrices) {
-        std::cout << "Info Mat:" << std::endl;
-        this->informationMatrix->print();
-    }
 }
 
 void Seif::updateEpsilonBar() {
@@ -166,21 +136,11 @@ void Seif::updateEpsilonBar() {
     *this->informationVector +=
             ((*this->lambda - *this->kappa) * *this->stateEstimate +
             (*this->informationMatrix * fx_T * *this->delta));
-
-    if (this->printMatrices) {
-        std::cout << "Info Vec: " << std::endl;
-        this->informationVector->print();
-    }
 }
 
 void Seif::updateMuBar() {
     auto fx_T(*this->F_X); fx_T.transpose();
     *this->stateEstimate += fx_T * *this->delta;
-
-    if (this->printMatrices) {
-        std::cout << "State estimate: " << std::endl;
-        this->stateEstimate->print();
-    }
 }
 
 void Seif::integrateActiveFeatures() {
