@@ -14,12 +14,12 @@
 #include <limits>
 #include <Eigen/Dense>
 
-#include <MatrixManipulator.h>
 #include <SharedMemoryStructs.h>
 #include <SLAMConfigIn.h>
 #include <Matrix.h>
 
 #include "../../Agent/Moments/Moments.h"
+#include "../../Utilities/Equations/Equations.h"
 
 enum relation {
     EQUIV = 0,
@@ -119,8 +119,8 @@ private:
     void update_q();
     void updateZHat(const float &correspondence);
     void updateH(const unsigned long &idx);
-    void infoVecSummation(Matrix<float> *infoVec, const FEATURE &feature);
-    void infoMatrixSummation(Matrix<float> *infoMatrix);
+    void infoVecSummation(const FEATURE &feature);
+    void infoMatrixSummation();
 
     // Sparsification (func)
     void updateInformationMatrix();
@@ -130,7 +130,6 @@ private:
     void makeInactive(FEATURE *toDeact);
 
     // Tools
-    Matrix<float> identity(const unsigned long &size);
     static bool correspondenceSort(const FEATURE &feat, const FEATURE &other);
     static bool distanceSort(const FEATURE &featA, const FEATURE &featB);
 

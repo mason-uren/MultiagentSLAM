@@ -12,34 +12,42 @@
 #include <algorithm>
 #include <Eigen/Dense>
 #include <Eigen/SparseCore>
+#include <Eigen/SparseCholesky>
+#include <Eigen/SparseQR>
+#include <Eigen/SparseLU>
+#include <Eigen/OrderingMethods>
 
 template <class T>
 class Matrix {
 public:
     Matrix(const unsigned long &rows, const unsigned long &cols = 1) :
-        data(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>::Zero(std::max(rows, (u_long) 1), std::max(cols, (u_long) 1))),
-        nRows(rows),
-        nCols(cols),
-        trans(false)
+            data(Eigen::SparseMatrix<T, Eigen::ColMajor, long> (
+                    std::max(rows, (u_long) 1), std::max(cols, (u_long) 1))),
+            nRows(rows),
+            nCols(cols),
+            trans(false)
     {}
     Matrix(const std::initializer_list<const std::initializer_list<T>> list) :
-        data(
-                Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>::Zero(
-                        list.size() < 2 ? list.begin()->size() : list.size(),
-                        list.size() < 2 ? list.size() : list.begin()->size())
+            data(
+                    Eigen::SparseMatrix<T, Eigen::ColMajor, long>(
+                            list.size() < 2 ? list.begin()->size() : list.size(),
+                            list.size() < 2 ? list.size() : list.begin()->size())
             ),
-        nRows((u_long) list.size() < 2 ? list.begin()->size() : list.size()),
-        nCols((u_long) list.size() < 2 ? list.size() : list.begin()->size()),
-        trans(false)
+            nRows((u_long) list.size() < 2 ? list.begin()->size() : list.size()),
+            nCols((u_long) list.size() < 2 ? list.size() : list.begin()->size()),
+            trans(false)
     {
+        std::vector<triplet> tripletList(nRows * nCols);
         int i = 0; int j = 0;
         for (auto innerList : list) {
             for (auto val : innerList) {
-                data(i, j++) = val;
+                tripletList[(i * nCols) + j] = triplet(i, j, val);
+                j++;
             }
             i++;
             j = 0;
         }
+        data.setFromTriplets(tripletList.begin(), tripletList.end());
     }
     Matrix(const Matrix &matrix) :
         data(matrix.data),
@@ -50,14 +58,11 @@ public:
     Matrix() = default;
     ~Matrix() = default;
 
-    // TODO may need to build copy constructor
-
-    // TODO may ?need to build string parser for 'getType' to elimate garbage characters
-
     bool operator==(const Matrix &matrix) const;
     void operator=(const Matrix &matrix);
     T &at(const unsigned long &row, const unsigned long &col);
     T &at(const unsigned long &index);
+    void identity();
     void transpose();
     void invert();
     bool canInvert();
@@ -69,24 +74,24 @@ public:
     // For testing purposes only
     void print();
 
+    Matrix<T> operator*(const Matrix<T> &matrix) const;
+    Matrix<T> operator-(const Matrix<T> &matrix);
+    Matrix<T> operator+(const Matrix<T> &matrix);
+    void operator*=(const float &scalar);
+    void operator-=(const Matrix<T> &matrix);
+    void operator+=(const Matrix<T> &matrix);
+
 private:
-    explicit Matrix(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> &matrix) :
+    explicit Matrix(const Eigen::SparseMatrix<T, Eigen::ColMajor, long> &matrix) :
             data(matrix),
             nRows((u_long) matrix.rows()),
             nCols((u_long) matrix.cols()),
             trans(false)
     {}
 
-    friend class MatrixManipulator;
-    Matrix<T> operator*(const Matrix<T> &matrix) const;
-    void operator*=(const float &scalar);
-    void operator-=(const Matrix<T> &matrix);
-    void operator+=(const Matrix<T> &matrix);
+    typedef Eigen::Triplet<T> triplet;
 
-    Eigen::SparseMatrix<T> makeSparse(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> &data) const;
-    void makeDense(const Eigen::SparseMatrix<T> &matrix);
-
-    Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> data{};
+    Eigen::SparseMatrix<T> data{};
     unsigned long nRows{};
     unsigned long nCols{};
     bool trans{};
@@ -114,7 +119,7 @@ T &Matrix<T>::at(const unsigned long &row, const unsigned long &col) {
         std::cout << "Matrix : col indice out of bounds... Exiting" << std::endl; ;
         exit(EXIT_FAILURE);
     }
-    return data(row, col);
+    return data.coeffRef(row, col);
 }
 
 template<class T>
@@ -123,30 +128,44 @@ T &Matrix<T>::at(const unsigned long &index) {
         std::cout << "Vector : index out of bounds... Exiting" << std::endl;
         exit(EXIT_FAILURE);
     }
-    return data(index);
+    return data.coeffRef(index, 0);
+}
+
+template<class T>
+void Matrix<T>::identity() {
+    data.setIdentity();
 }
 
 template <typename T>
 void Matrix<T>::transpose() {
     trans = !trans;
     std::swap(nRows, nCols);
-    data.transposeInPlace();
+    data = Eigen::SparseMatrix<T>(data.transpose());
 }
 
 template<class T>
 void Matrix<T>::invert() {
-    if (data.isZero()) {
+    if (!data.nonZeros()) {
         return;
     }
-    if (canInvert()) {
-        data = data.inverse();
-    }
+//    if (canInvert()) {
+        Eigen::SparseQR<Eigen::SparseMatrix<T, Eigen::ColMajor, long>, Eigen::COLAMDOrdering<long>> solver;
+        solver.compute(data);
+        Eigen::SparseMatrix<T, Eigen::ColMajor, long> I(nRows, nCols);
+        I.setIdentity();
+        data = solver.solve(I);
+//    }
 }
 
 template<class T>
 bool Matrix<T>::canInvert() {
-    if (std::isinf(1 / data.determinant())) {
-        std::cerr << "Matrix not invertible. Det: " <<  data.determinant() << std::endl;
+    Eigen::SparseLU<Eigen::SparseMatrix<T, Eigen::ColMajor, long>, Eigen::COLAMDOrdering<long>> solver;
+    solver.analyzePattern(data);
+    solver.factorize(data);
+    float val = solver.logAbsDeterminant();
+
+    if (std::isinf(val)) {
+        std::cerr << "Matrix not invertible. Det: " <<  val << std::endl;
         exit(EXIT_FAILURE);
     }
     return true;
@@ -164,7 +183,7 @@ unsigned long Matrix<T>::numCols() const {
 
 template <typename T>
 void Matrix<T>::print() {
-    std::cout << data << std::endl;
+    std::cout << Eigen::Matrix<T, -1, -1>(data) << std::endl;
 }
 
 template<class T>
@@ -173,42 +192,74 @@ void Matrix<T>::resetMatrix() {
         trans = !trans;
         std::swap(nRows, nCols);
     }
-    data = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>::Zero(nRows, nCols);
+    data = Eigen::SparseMatrix<T, Eigen::ColMajor, long>(nRows, nCols);
 }
 
 template <typename T>
 void Matrix<T>::zeroMatrix() {
-    data = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>::Zero(nRows, nCols);
+    data.setZero();
 }
 
 template<class T>
 Matrix<T> Matrix<T>::operator*(const Matrix<T> &matrix) const {
-    return Matrix<T>(Eigen::SparseMatrix<T>(makeSparse(data) * makeSparse(matrix.data)));
+    if (nCols != matrix.nRows) {
+        std::cerr << "Cannot multiply given matrices." << std::endl;
+        std::cerr << "dims : A(" << nRows << ", " << nCols << ")" << std::endl;
+        std::cerr << "dims : B(" << matrix.nRows << ", " << matrix.nCols << ")" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    return Matrix<T>((data * matrix.data).pruned(1E-3));
 }
 
 template<class T>
+Matrix<T> Matrix<T>::operator-(const Matrix<T> &matrix) {
+    if (nRows != matrix.nRows && nCols != matrix.nCols) {
+        std::cerr << "Cannot multiply given matrices." << std::endl;
+        std::cerr << "dims : A(" << nRows << ", " << nCols << ")" << std::endl;
+        std::cerr << "dims : B(" << matrix.nRows << ", " << matrix.nCols << ")" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    return Matrix<T>(data - matrix.data);
+}
+
+template<class T>
+Matrix<T> Matrix<T>::operator+(const Matrix<T> &matrix) {
+    if (nRows != matrix.nRows && nCols != matrix.nCols) {
+        std::cerr << "Cannot multiply given matrices." << std::endl;
+        std::cerr << "dims : A(" << nRows << ", " << nCols << ")" << std::endl;
+        std::cerr << "dims : B(" << matrix.nRows << ", " << matrix.nCols << ")" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    return Matrix<T>(data + matrix.data);
+}
+
+
+
+template<class T>
 void Matrix<T>::operator*=(const float &scalar) {
-    makeDense(Eigen::SparseMatrix<T>(makeSparse(data) *= scalar));
+    data *= scalar;
 }
 
 template<class T>
 void Matrix<T>::operator-=(const Matrix<T> &matrix) {
-    makeDense(Eigen::SparseMatrix<T>(makeSparse(data) -= makeSparse(matrix.data)));
+    if (nRows != matrix.nRows && nCols != matrix.nCols) {
+        std::cerr << "Cannot multiply given matrices." << std::endl;
+        std::cerr << "dims : A(" << nRows << ", " << nCols << ")" << std::endl;
+        std::cerr << "dims : B(" << matrix.nRows << ", " << matrix.nCols << ")" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    data -= matrix.data;
 }
 
 template<class T>
 void Matrix<T>::operator+=(const Matrix<T> &matrix) {
-    makeDense(Eigen::SparseMatrix<T>(makeSparse(data) += makeSparse(matrix.data)));
-}
-
-template<class T>
-Eigen::SparseMatrix<T> Matrix<T>::makeSparse(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> &denseMatrix) const {
-    return denseMatrix.sparseView();
-}
-
-template<class T>
-void Matrix<T>::makeDense(const Eigen::SparseMatrix<T> &matrix) {
-    data = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>(matrix);
+    if (nRows != matrix.nRows && nCols != matrix.nCols) {
+        std::cerr << "Cannot multiply given matrices." << std::endl;
+        std::cerr << "dims : A(" << nRows << ", " << nCols << ")" << std::endl;
+        std::cerr << "dims : B(" << matrix.nRows << ", " << matrix.nCols << ")" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    data += matrix.data;
 }
 
 #endif //MULTIAGENTSLAM_MATRIX_H
