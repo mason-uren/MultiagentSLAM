@@ -6,12 +6,13 @@
 
 // RAY - range (0) angle (1)
 // POSE - x (0) y (1) theta (2)
-std::array<float, 2> Equations::originToPoint(const RAY &ray,
-        const std::array<float, 3> &pose,
+POSE Equations::originToPoint(const RAY &ray,
+        const POSE &pose,
         const bool &orthogonal) {
-    return {
-            (ray.range * sin(pose[THETA] + ray.angle)) + (orthogonal ? pose[Y] : pose[X]),
-            (ray.range * cos(pose[THETA] + ray.angle)) + (orthogonal ? pose[X] : pose[Y])
+    return POSE{
+            (ray.range * sin(pose.theta + ray.angle)) + (orthogonal ? pose.y : pose.x),
+            (ray.range * cos(pose.theta + ray.angle)) + (orthogonal ? pose.x : pose.y),
+            -MAXFLOAT
     };
 }
 

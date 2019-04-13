@@ -22,6 +22,7 @@ set(
         ${DIR_MACRO}Agent/Rover/Rover.cpp
         ${DIR_MACRO}Agent/Rover/RoverFactory.cpp
         ${DIR_MACRO}Slam/ActiveRovers/ActiveRovers.cpp
+        ${DIR_MACRO}Slam/FeatureSet/FeatureSet.cpp
         ${DIR_MACRO}Slam/SEIF/Seif.cpp
         ${DIR_MACRO}Slam/SlamAdapter/SlamAdapter.cpp
         ${DIR_MACRO}Utilities/ConfigParser/ConfigParser.cpp
