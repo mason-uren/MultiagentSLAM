@@ -20,8 +20,8 @@ public:
         return &instance;
     }
 
-    std::array<float, 2> originToPoint(const RAY &ray,
-            const std::array<float, 3> &pose,
+    POSE originToPoint(const RAY &ray,
+            const POSE &pose,
             const bool &orthogonal = false);
     float wrapTheta(const float &orientation);
     float normalizeValue(const float &value, const float &lowbound, const float &highbound);

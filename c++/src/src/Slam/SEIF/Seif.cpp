@@ -236,15 +236,15 @@ bool Seif::isNewFeature(const RAY &incidentRay) {
 }
 
 void Seif::deriveFeature(FEATURE &feature, const RAY &incidentRay) {
-    std::array<float, 2> xyCoords = Equations::getInstance()->originToPoint(
+    POSE xyCoords = Equations::getInstance()->originToPoint(
             incidentRay,
             {rPose.x, rPose.y, rPose.theta},
             true); // true
 
     feature.incidentRay = incidentRay;
-    feature.pose = {.x = xyCoords[X], .y = xyCoords[Y]};
+    feature.pose = xyCoords;
     feature.correspondence = Equations::getInstance()->normalizeValue(
-            Equations::getInstance()->cantor(xyCoords[X], xyCoords[Y]),
+            Equations::getInstance()->cantor(xyCoords.x, xyCoords.y),
             0, this->maxCorrespondence
     );
 }

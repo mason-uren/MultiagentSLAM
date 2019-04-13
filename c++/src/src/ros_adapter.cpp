@@ -16,6 +16,7 @@
 #include "Utilities/SharedMemory/SharedMemory.h"
 #include "Utilities/ConfigParser/ConfigParser.h"
 #include "Utilities/Equations/Equations.h"
+#include "Slam/FeatureSet/FeatureSet.h"
 
 
 
@@ -37,6 +38,7 @@ void testDetections();
 void testMatrix();
 void testMatrixMan();
 void testSeif();
+void testFeatureSet();
 
 static std::shared_ptr<SharedMemory> sharedMemory;
 static std::shared_ptr<ConfigParser> configParser;
@@ -66,7 +68,8 @@ int main() {
 //    testDetections();
 //    testMatrix();
 //    testMatrixMan();
-    testSeif();
+//    testSeif();
+    testFeatureSet();
     return 0;
 }
 
@@ -256,9 +259,10 @@ void testMoments() {
 void testEquations() {
     // Origin to Point
     RAY ray {.range = 5, .angle = 0.6435};
-    std::array<float, 3> pose{2, 1, 0};
-    std::array<float, 2> pt = Equations::getInstance()->originToPoint(ray, pose);
-    std::cout << "Origin to pt. (" << ((abs(pt[0] - 5) < 0.1 && abs(pt[1] - 5) < 5) ? "PASS" : "FAIL") << ")" << std::endl;
+    POSE pose{2, 1, 0};
+    POSE pt = Equations::getInstance()->originToPoint(ray, pose);
+
+    std::cout << "Origin to pt. (" << ((abs(pt.x - 5) < 0.1 && abs(pt.y - 5) < 5) ? "PASS" : "FAIL") << ")" << std::endl;
 
     // Wrapping theta
     double largeRad =  M_PI + M_PI_2;
@@ -589,6 +593,52 @@ void testSeif() {
     std::cout << "Final Pose: " << rPose.x << ", " << rPose.y << ", " << rPose.theta << std::endl;
 
     std::cout << "SEIF (" << ((fabs(rPose.x) < 0.05 && fabs(rPose.y) < 0.05 && fabs(rPose.theta) <0.05) ? "PASS" : "FAIL") << ")" << std::endl;
+}
+
+void testFeatureSet() {
+    RAY incRay{.range = 2, .angle = (float) M_PI_2};
+    std::array<POSE, 3> rPoses {
+        POSE{.x = -2, .y = 5, .theta = (float) -M_PI_2},
+        POSE{.x = -1.57, .y = -1.57, .theta = -M_PI_4},
+        POSE{.x = 5, .y = -2, .theta = 0}
+    };
+
+    std::array<FEATURE, 7> features {
+        FEATURE {
+                .incidentRay = incRay,
+                .pose = Equations::getInstance()->originToPoint(incRay, rPoses[0], true)
+        },
+        FEATURE {
+                .incidentRay = incRay,
+                .pose = Equations::getInstance()->originToPoint(incRay, rPoses[1], true)
+        },
+        FEATURE {
+                .incidentRay = incRay,
+                .pose = Equations::getInstance()->originToPoint(incRay, rPoses[2], true)
+        },
+        FEATURE {
+                .incidentRay = incRay,
+                .pose = Equations::getInstance()->originToPoint(incRay, rPoses[0], true)
+        },
+        FEATURE {
+                .incidentRay = incRay,
+                .pose = Equations::getInstance()->originToPoint(incRay, rPoses[1], true)
+        },
+        FEATURE {
+                .incidentRay = incRay,
+                .pose = Equations::getInstance()->originToPoint(incRay, rPoses[2], true)
+        },
+        FEATURE {
+                .incidentRay = incRay,
+                .pose = Equations::getInstance()->originToPoint(incRay, rPoses[2], true)
+        },
+    };
+
+    FeatureSet *featureSet = new FeatureSet();
+
+    for (int i = 0; i < 7; i++) {
+        featureSet->addToSet(features[i], rPoses[i]);
+    }
 }
 
 void testEnv() {
