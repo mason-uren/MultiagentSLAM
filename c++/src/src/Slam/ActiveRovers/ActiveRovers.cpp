@@ -8,18 +8,18 @@ void ActiveRovers::addRover(Rover &rover) {
     this->active->insert(std::make_pair(rover.getName(), &rover));
 }
 
-bool ActiveRovers::getRoverByName(const std::string &name, Rover &rover) {
+Rover& ActiveRovers::getRoverByName(const std::string &name) {
     try {
-        rover = *this->active->at(name);
-        return true;
+        return *this->active->at(name);
+
     }
     catch (const std::out_of_range &error) {
         std::cerr << "Rover name not found : " << error.what() << std::endl;
+        exit(EXIT_FAILURE);
     }
-    return false;
 }
 
-bool ActiveRovers::getRoverByID(const int &id, Rover &rover) {
+Rover& ActiveRovers::getRoverByID(const int &id) {
     try {
         std::string name;
         for (auto &roverObj : *this->active) {
@@ -28,11 +28,11 @@ bool ActiveRovers::getRoverByID(const int &id, Rover &rover) {
                 break;
             }
         };
-        return this->getRoverByName(name, rover);
+        return this->getRoverByName(name);
     } catch (const std::out_of_range &error) {
-        std::cerr << "Rover CORRESPONDENCE not found : " << error.what() << std::endl;
+        std::cerr << "Rover id not found : " << error.what() << std::endl;
+        exit(EXIT_FAILURE);
     }
-    return false;
 }
 
 std::unordered_map<std::string, Rover *> * ActiveRovers::getActiveRovers() {

@@ -6,7 +6,6 @@
 #define MULTIAGENTSLAM_MATRIX_H
 
 #define EIGEN_USE_MKL_ALL
-#define EPSILON 1
 
 #include <iostream>
 #include <algorithm>
@@ -16,11 +15,10 @@
 #include <Eigen/SparseQR>
 #include <Eigen/SparseLU>
 #include <Eigen/OrderingMethods>
-
 template <class T>
 class Matrix {
 public:
-    Matrix(const unsigned long &rows, const unsigned long &cols = 1) :
+    explicit Matrix(const unsigned long &rows, const unsigned long &cols = 1) :
             data(Eigen::SparseMatrix<T, Eigen::ColMajor, long> (
                     std::max(rows, (u_long) 1), std::max(cols, (u_long) 1))),
             nRows(rows),
@@ -59,9 +57,14 @@ public:
     ~Matrix() = default;
 
     bool operator==(const Matrix &matrix) const;
-    void operator=(const Matrix &matrix);
-    T &at(const unsigned long &row, const unsigned long &col);
     T &at(const unsigned long &index);
+    auto operator[](const size_t &row);
+    Matrix<T> operator*(const Matrix<T> &matrix) const;
+    Matrix<T> operator-(const Matrix<T> &matrix);
+    Matrix<T> operator+(const Matrix<T> &matrix);
+    void operator*=(const float &scalar);
+    void operator-=(const Matrix<T> &matrix);
+    void operator+=(const Matrix<T> &matrix);
     void identity();
     void transpose();
     void invert();
@@ -73,13 +76,6 @@ public:
 
     // For testing purposes only
     void print();
-
-    Matrix<T> operator*(const Matrix<T> &matrix) const;
-    Matrix<T> operator-(const Matrix<T> &matrix);
-    Matrix<T> operator+(const Matrix<T> &matrix);
-    void operator*=(const float &scalar);
-    void operator-=(const Matrix<T> &matrix);
-    void operator+=(const Matrix<T> &matrix);
 
 private:
     explicit Matrix(const Eigen::SparseMatrix<T, Eigen::ColMajor, long> &matrix) :
@@ -95,6 +91,21 @@ private:
     unsigned long nRows{};
     unsigned long nCols{};
     bool trans{};
+
+    class RowProxy {
+        Matrix& _matrix;
+        size_t _row;
+
+    public:
+        RowProxy(Matrix& matrix, size_t row) : _matrix(matrix), _row(row) {}
+        T& operator[](size_t col) {
+            if (col >= _matrix.nCols) {
+                std::cerr << "Col : index out of bounds... Exiting" << std::endl;
+                exit(EXIT_FAILURE);
+            }
+            return _matrix.data.coeffRef(_row, col);
+        };
+    };
 };
 
 template <typename T>
@@ -103,25 +114,15 @@ bool Matrix<T>::operator==(const Matrix<T> &matrix) const {
 }
 
 template<class T>
-void Matrix<T>::operator=(const Matrix &matrix) {
-    data = matrix.data;
-    nRows = matrix.nRows;
-    nCols = matrix.nCols;
-    trans = matrix.trans;
-}
-
-template <typename T>
-T &Matrix<T>::at(const unsigned long &row, const unsigned long &col) {
+auto Matrix<T>::operator[](const size_t &row) {
     if (row >= nRows) {
-        std::cout << "Matrix : row indice out of bounds... Exiting" << std::endl;
-        exit(EXIT_FAILURE);
-    } else if (col >= nCols) {
-        std::cout << "Matrix : col indice out of bounds... Exiting" << std::endl; ;
+        std::cerr << "Row : index out of bounds... Exiting" << std::endl;
         exit(EXIT_FAILURE);
     }
-    return data.coeffRef(row, col);
+    return RowProxy{*this, row};
 }
 
+// To be used exclusively with vectors
 template<class T>
 T &Matrix<T>::at(const unsigned long &index) {
     if (index >= (nRows * nCols)) {
@@ -208,7 +209,7 @@ Matrix<T> Matrix<T>::operator*(const Matrix<T> &matrix) const {
         std::cerr << "dims : B(" << matrix.nRows << ", " << matrix.nCols << ")" << std::endl;
         exit(EXIT_FAILURE);
     }
-    return Matrix<T>((data * matrix.data).pruned(1E-3));
+    return static_cast<Matrix<T>>((data * matrix.data).pruned(1E-3));
 }
 
 template<class T>
@@ -219,7 +220,7 @@ Matrix<T> Matrix<T>::operator-(const Matrix<T> &matrix) {
         std::cerr << "dims : B(" << matrix.nRows << ", " << matrix.nCols << ")" << std::endl;
         exit(EXIT_FAILURE);
     }
-    return Matrix<T>(data - matrix.data);
+    return static_cast<Matrix<T>>(data - matrix.data);
 }
 
 template<class T>
@@ -230,7 +231,7 @@ Matrix<T> Matrix<T>::operator+(const Matrix<T> &matrix) {
         std::cerr << "dims : B(" << matrix.nRows << ", " << matrix.nCols << ")" << std::endl;
         exit(EXIT_FAILURE);
     }
-    return Matrix<T>(data + matrix.data);
+    return static_cast<Matrix<T>>(data + matrix.data);
 }
 
 

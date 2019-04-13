@@ -1,52 +1,4 @@
-#include <memory>
-
-#include <iostream>
-#include <sstream>
-#include <cmath>
-#include <Eigen/Dense>
-
-
-#include <MeanFilter.h>
-#include <VarianceFilter.h>
-#include <CovarianceFilter.h>
-#include <Matrix.h>
-
-#include "Agent/Rover/RoverFactory.h"
-#include "Slam/SlamAdapter/SlamAdapter.h"
-#include "Utilities/SharedMemory/SharedMemory.h"
-#include "Utilities/ConfigParser/ConfigParser.h"
-#include "Utilities/Equations/Equations.h"
-
-
-
-void loadDefaultConfig();
-void jsonInitialize();
-
-void testEnv();
-
-// Verification Functions
-void printActiveRovers();
-void testMeanFilter();
-void testVarianceFilter();
-void testFIRFilter();
-void testTransformations();
-void testMoments();
-void testEquations();
-void testRedBlackTree();
-void testDetections();
-void testMatrix();
-void testMatrixMan();
-void testSeif();
-
-static std::shared_ptr<SharedMemory> sharedMemory;
-static std::shared_ptr<ConfigParser> configParser;
-static std::shared_ptr<Seif> seif;
-static std::shared_ptr<Detection> detection;
-static std::shared_ptr<RedBlackTree> localMap;
-static std::shared_ptr<SYS_CONFIG_IN> systemConfig;
-
-
-using json = nlohmann::json;
+#include "ros_adapter.h"
 
 int main() {
 
@@ -66,7 +18,8 @@ int main() {
 //    testDetections();
 //    testMatrix();
 //    testMatrixMan();
-    testSeif();
+//    testSeif();
+    testFeatureSet();
     return 0;
 }
 
@@ -104,8 +57,7 @@ void jsonInitialize() {
     ActiveRovers::getInstance();
     Equations::getInstance();
     Moments::getInstance();
-
-    // TODO : 'callbacks' will need to be setup before becoming active
+    FeatureSet::getInstance();
 
     // Need to populate activeRovers and build translation based on number of rovers.
     SLAM_CONFIG slamConfig = systemConfig->config.slamConfig;
@@ -127,6 +79,8 @@ void jsonInitialize() {
                     rover->addDetection(&(*detection));
                     rover->addSeif(&(*seif));
                     rover->addLocalMap(&(*localMap));
+
+                    roverName = rover->getName();
                 }
 
                 ActiveRovers::getInstance()->addRover(*rover);
@@ -134,8 +88,15 @@ void jsonInitialize() {
             }
         }
     }
+
+    // TODO : 'callbacks' will need to be setup before becoming active
+
+
 }
 
+void publishFeatureSet(const std::array<FEATURE, FEATURE_LIMIT> &featureSet, const CLASSIFIER &classifer) {
+    std::cout << "GLOBAL PUBLISHER" << std::endl;
+}
 
 
 
@@ -148,7 +109,7 @@ void printActiveRovers() {
     for (auto &rover : rovers) {
         std::cout << "Rover" << std::endl;
         std::cout << "Name : " << rover.second->getName() << std::endl;
-        std::cout << "CORRESPONDENCE : " << rover.second->getID() << std::endl;
+        std::cout << "id : " << rover.second->getID() << std::endl;
         std::cout << "Confidence : " << rover.second->getConfidence() << std::endl;
         std::cout << "Pose : x - " << rover.second->getCurrentPose()->x <<
             " y - " << rover.second->getCurrentPose()->y <<
@@ -235,18 +196,18 @@ void testMoments() {
     std::vector<long> y_vals {4, 5, 6};
 
     for (size_t i = 0; i < 3; i++) {
-        means[X]->onlineAverage(x_vals[i]);
-        means[Y]->onlineAverage(y_vals[i]);
-        var[X]->onlineVariance(x_vals[i], means[X]->getFilteredValue());
-        var[Y]->onlineVariance(y_vals[i], means[Y]->getFilteredValue());
+        means[static_cast<int>(pos_val::X)]->onlineAverage(x_vals[i]);
+        means[static_cast<int>(pos_val::Y)]->onlineAverage(y_vals[i]);
+        var[static_cast<int>(pos_val::X)]->onlineVariance(x_vals[i], means[static_cast<int>(pos_val::X)]->getFilteredValue());
+        var[static_cast<int>(pos_val::Y)]->onlineVariance(y_vals[i], means[static_cast<int>(pos_val::Y)]->getFilteredValue());
         covariances[0]->onlineCovariance(x_vals[i], y_vals[i],
-                means[X]->getFilteredValue(), means[Y]->getFilteredValue());
+                means[static_cast<int>(pos_val::X)]->getFilteredValue(), means[static_cast<int>(pos_val::Y)]->getFilteredValue());
     }
     std::cout << "Mean Filter: (" <<
-        ((means[X]->getFilteredValue() == 2 && means[Y]->getFilteredValue() == 5) ? "PASS" : "FAIL") <<
+        ((means[static_cast<int>(pos_val::X)]->getFilteredValue() == 2 && means[static_cast<int>(pos_val::Y)]->getFilteredValue() == 5) ? "PASS" : "FAIL") <<
         ")" << std::endl;
     std::cout << "Variance Filter (" <<
-        ((var[X]->getFilteredVariance() > 0.6 && var[X]->getFilteredVariance() < 0.7) ? "PASS" : "FAIL") <<
+        ((var[static_cast<int>(pos_val::X)]->getFilteredVariance() > 0.6 && var[static_cast<int>(pos_val::X)]->getFilteredVariance() < 0.7) ? "PASS" : "FAIL") <<
         ")" << std::endl;
     std::cout << "Covariance Filter (" <<
         ((covariances[0]->getFilteredCovariance() > 0.6 && covariances[0]->getFilteredCovariance() < 0.7) ? "PASS" : "FAIL") <<
@@ -256,9 +217,10 @@ void testMoments() {
 void testEquations() {
     // Origin to Point
     RAY ray {.range = 5, .angle = 0.6435};
-    std::array<float, 3> pose{2, 1, 0};
-    std::array<float, 2> pt = Equations::getInstance()->originToPoint(ray, pose);
-    std::cout << "Origin to pt. (" << ((abs(pt[0] - 5) < 0.1 && abs(pt[1] - 5) < 5) ? "PASS" : "FAIL") << ")" << std::endl;
+    POSE pose{2, 1, 0};
+    POSE pt = Equations::getInstance()->originToPoint(ray, pose);
+
+    std::cout << "Origin to pt. (" << ((abs(pt.x - 5) < 0.1 && abs(pt.y - 5) < 5) ? "PASS" : "FAIL") << ")" << std::endl;
 
     // Wrapping theta
     double largeRad =  M_PI + M_PI_2;
@@ -293,7 +255,6 @@ void testEquations() {
 }
 
 void testRedBlackTree() {
-    Rover rover = Rover();
     std::vector<double> sampleSignatures {
         1, 2.0, -3, 4, -5, -10.33, 11.5, -50.7, 7, -6
     };
@@ -312,29 +273,31 @@ void testRedBlackTree() {
         CLASSIFIER(),
     };
     std::array<FEATURE, 3> sampleFeatures {
-        FEATURE{.pose.x = 0.3, .pose.y = 1.57, .incidentRay.angle = 3.14},
-        FEATURE(),
-        FEATURE()
+        FEATURE{},
+        FEATURE{},
+        FEATURE{}
     };
+    sampleFeatures[0].pose.x = 0.3;
+    sampleFeatures[0].pose.y = 1.57;
+    sampleFeatures[0].incidentRay.angle = 3.14;
 
     for (int i = 0; i < sampleClassifiers.size(); i++) {
         sampleClassifiers[i].signature = (float) sampleSignatures[i];
     }
 
     // Create tree
-    if (ActiveRovers::getInstance()->getRoverByName("achilles", rover)) {
-        for (auto classifier : sampleClassifiers) {
-            (*rover.getLocalMap()).addToTree(classifier, sampleFeatures);
-        }
+    rover = ActiveRovers::getInstance()->getRoverByName("achilles");
+    for (auto classifier : sampleClassifiers) {
+        rover.getLocalMap()->addToTree(classifier, sampleFeatures);
     }
 
     // Check if tree is balanced
-    std::cout << "Root : " << *(*rover.getLocalMap()).getRoot() << std::endl;
-    (*rover.getLocalMap()).printTree(new NODE_PTR{.valid = true, .node_ptr = *(*rover.getLocalMap()).getRoot()}, 0);
+    std::cout << "Root : " << rover.getLocalMap()->getRoot() << std::endl;
+    rover.getLocalMap()->printTree(new NODE_PTR{.valid = true, .node_ptr = *(rover.getLocalMap()->getRoot())}, 0);
 
     // Check ML classifier (looking for like features)
     unsigned long index = 0;
-    (*rover.getLocalMap()).findMLClassifier(dummyClassifier, index);
+    (rover.getLocalMap())->findMLClassifier(dummyClassifier, index);
     std::cout << "Find Classifier (" << ((index == 6) ? "PASS" : "FAIL") << ")" << std::endl;
 
     // Get features from node
@@ -353,7 +316,7 @@ void testRedBlackTree() {
         "PASS" : "FAIL") << ")" << std::endl;
 
     // Reset Tree
-    (*rover.getLocalMap()).resetTree();
+    rover.getLocalMap()->resetTree();
     std::cout << "Reset Tree ("  << ((*rover.getLocalMap()->getRoot()) ? "FAIL" : "PASS") << ")" << std::endl;
 }
 
@@ -364,12 +327,10 @@ void testDetections() {
         SONAR{.id = sonar_id ::RIGHT, .observedRange = 1}
     };
 
-    Rover rover = Rover();
-    if (ActiveRovers::getInstance()->getRoverByName("achilles", rover)) {
-        rover.getDetections()->MLIncidentRay(sampleSonar);
-        std::cout << "Detection : " << rover.getDetections()->hasIncidentRay() << std::endl;
-        RAY *ray = rover.getDetections()->getIncidentRay();
-    }
+    rover = ActiveRovers::getInstance()->getRoverByName("achilles");
+    rover.getDetections()->MLIncidentRay(sampleSonar);
+    std::cout << "Detection : " << rover.getDetections()->hasIncidentRay() << std::endl;
+    RAY *ray = rover.getDetections()->getIncidentRay();
 }
 
 void testMatrix() {
@@ -378,7 +339,7 @@ void testMatrix() {
             {4, 5, 6}
     };
     std::cout << "Matrix Template (" <<
-        ((matrix.at(0, 0) == 1) ? "PASS" : "FAIL") << ")" << std::endl;
+        ((matrix[0][0] == 1) ? "PASS" : "FAIL") << ")" << std::endl;
     matrix.print();
 
     Matrix<float> idMat {
@@ -392,7 +353,7 @@ void testMatrix() {
 
     matrix.transpose();
     std::cout << "Matrix Transpose (" <<
-        ((matrix.at(0, 1) == 4 && matrix.at(2, 0) == 3) ? "PASS" : "FAIL") << ")" << std::endl;
+        ((matrix[0][1] == 4 && matrix[2][0] == 3) ? "PASS" : "FAIL") << ")" << std::endl;
     matrix.print();
 
 
@@ -402,17 +363,19 @@ void testMatrix() {
 
     // Testing inverting matrices (also determinant)
     std::cout << "Original Mat: " << std::endl;
-    Matrix<float> toInv(3, 3);
-    toInv.at(0, 0) = 3, toInv.at(0, 1) = 0, toInv.at(0, 2) = 2;
-    toInv.at(1, 0) = 2, toInv.at(1, 1) = 0, toInv.at(1, 2) = -2;
-    toInv.at(2, 0) = 0, toInv.at(2, 1) = 1, toInv.at(2, 2) = 1;
+    Matrix<float> toInv{
+            {3, 0, 2},
+            {2, 0, -2},
+            {0, 1, 1}
+    };
 
     toInv.invert();
 
-    Matrix<float> inverse(3, 3);
-    inverse.at(0, 0) = 0.2, inverse.at(0, 1) = 0.2, inverse.at(0, 2) = 0;
-    inverse.at(1, 0) = -0.2, inverse.at(1, 1) = 0.3, inverse.at(1, 2) = 1;
-    inverse.at(2, 0) = 0.2, inverse.at(2, 1) = -0.3, inverse.at(2, 2) = 0;
+    Matrix<float> inverse {
+        {0.2, 0.2, 0},
+        {-0.2, 0.3, 1},
+        {0.2, -0.3, 0}
+    };
 
     toInv.print();
 
@@ -589,6 +552,56 @@ void testSeif() {
     std::cout << "Final Pose: " << rPose.x << ", " << rPose.y << ", " << rPose.theta << std::endl;
 
     std::cout << "SEIF (" << ((fabs(rPose.x) < 0.05 && fabs(rPose.y) < 0.05 && fabs(rPose.theta) <0.05) ? "PASS" : "FAIL") << ")" << std::endl;
+}
+
+void testFeatureSet() {
+    RAY incRay{.range = 2, .angle = (float) M_PI_2};
+    std::array<POSE, 3> rPoses {
+        POSE{.x = -2, .y = 5, .theta = (float) -M_PI_2},
+        POSE{.x = -1.57, .y = -1.57, .theta = -M_PI_4},
+        POSE{.x = 5, .y = -2, .theta = 0}
+    };
+
+    std::array<FEATURE, 7> features {
+        FEATURE {
+                .incidentRay = incRay,
+                .pose = Equations::getInstance()->originToPoint(incRay, rPoses[0], true)
+        },
+        FEATURE {
+                .incidentRay = incRay,
+                .pose = Equations::getInstance()->originToPoint(incRay, rPoses[1], true)
+        },
+        FEATURE {
+                .incidentRay = incRay,
+                .pose = Equations::getInstance()->originToPoint(incRay, rPoses[2], true)
+        },
+        FEATURE {
+                .incidentRay = incRay,
+                .pose = Equations::getInstance()->originToPoint(incRay, rPoses[0], true)
+        },
+        FEATURE {
+                .incidentRay = incRay,
+                .pose = Equations::getInstance()->originToPoint(incRay, rPoses[1], true)
+        },
+        FEATURE {
+                .incidentRay = incRay,
+                .pose = Equations::getInstance()->originToPoint(incRay, rPoses[2], true)
+        },
+        FEATURE {
+                .incidentRay = incRay,
+                .pose = Equations::getInstance()->originToPoint(incRay, rPoses[2], true)
+        },
+    };
+
+    for (int i = 0; i < 7; i++) {
+        FeatureSet::getInstance()->addToSet(features[i], rPoses[i]);
+        if (FeatureSet::getInstance()->readyToPublish()) {
+            auto FS = FeatureSet::getInstance()->publishSet();
+            publishFeatureSet(get<0>(FS), get<1>(FS));
+            rover = ActiveRovers::getInstance()->getRoverByName(roverName);
+            rover.integrateLocalFS(get<0>(FS), get<1>(FS));
+        }
+    }
 }
 
 void testEnv() {

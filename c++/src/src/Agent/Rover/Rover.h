@@ -15,12 +15,15 @@
 #include <SLAMConfigIn.h>
 #include <RoverInterface.h>
 #include <boost/uuid/uuid_generators.hpp>
+
 #include "../../Slam/SEIF/Seif.h"
 #include "../../Utilities/BinaryTree/RedBlackTree.h"
 #include "../Detection/Detection.h"
 #include "../Moments/Moments.h"
 
 typedef std::function<void(float[3], int)> TransformationCallback;
+
+class FeatureSet;
 
 class Rover : virtual public RoverInterface {
 public:
@@ -37,13 +40,10 @@ public:
         confidence(1.0),
         pose(new POSE {.x = 0, .y = 0, .theta = 0}),
         vel(new VELOCITY {.linear = 0, .angular = 0})
-//        ,
-//        seif(new Seif(&roverConfig->seifConfig)),
-//        detection(new Detection(&roverConfig->detectionConfig)),
-//        localMap(new RedBlackTree(&roverConfig->localMapConfig))
     {}
-
     ~Rover() override = default;
+
+//    friend void FeatureSet::publishSet();
 
     unsigned int getID() const override;
     std::string getName() const override;
@@ -56,13 +56,14 @@ public:
     void addDetection(Detection *detection);
     void addLocalMap(RedBlackTree *localMap);
 
-    void connectTransformationCallbacks(std::array<TransformationCallback, 2> &callbacks);
+//    void connectTransformationCallbacks(std::array<TransformationCallback, 2> &callbacks);
     void updatePoseVel(const POSE &pose, VELOCITY velocity);
     void updateMLIncidentRay(const std::array<SONAR, RANGE_SENSOR_COUNT> &sonar);
     void updateBelief(const POSE &pose, float confidence);
     void spareExtendedInformationFilter();
-    void integrateLocalFS(std::array<FEATURE, MAX_FEATURES_IN_SET> features, float classifier);
-    void integrateGlobalFS(std::array<FEATURE, MAX_FEATURES_IN_SET> features, float classifier, int publisher);
+    static void integrateLocalFS(const std::array<FEATURE, FEATURE_LIMIT> &features, const CLASSIFIER &classifier);
+    void integrateGlobalFS(const std::array<FEATURE, FEATURE_LIMIT> &features,
+            const CLASSIFIER &classifier, const int &publisher);
 
     // For testing purposes only!
     RedBlackTree *getLocalMap() {
@@ -84,8 +85,8 @@ private:
     void updateMeans();
     void updateVariances();
     void tuneConfi();
-    float *estimateMapTransformation(std::array<FEATURE, MAX_FEATURES_IN_SET> &features,
-            std::array<FEATURE, MAX_FEATURES_IN_SET> &otherFeatures);
+    float *estimateMapTransformation(std::array<FEATURE, FEATURE_LIMIT> &features,
+            std::array<FEATURE, FEATURE_LIMIT> &otherFeatures);
     float *mapTranslation(const std::array<float, 2> &fsOentroid, const std::array<float, 2> &otherOentroid);
     float mapOrientation(float fsOrientation, float otherOrientation);
     void shareTransformation(const std::array<float, 3> &transformation, int pairedRover);

@@ -42,9 +42,9 @@ void Rover::addLocalMap(RedBlackTree *localMap) {
 }
 
 // TODO
-void Rover::connectTransformationCallbacks(std::array<TransformationCallback, 2> &callbacks) {
-
-}
+//void Rover::connectTransformationCallbacks(std::array<TransformationCallback, 2> &callbacks) {
+//
+//}
 
 // TODO
 void Rover::updatePoseVel(const POSE &pose, const VELOCITY velocity) {
@@ -67,12 +67,13 @@ void Rover::spareExtendedInformationFilter() {
 }
 
 // TODO
-void Rover::integrateLocalFS(const std::array<FEATURE, 3> features, float classifier) {
-
+void Rover::integrateLocalFS(const std::array<FEATURE, FEATURE_LIMIT> &features, const CLASSIFIER &classifier) {
+    std::cout << "LOCAL PUBLISHER" << std::endl;
 }
 
 // TODO
-void Rover::integrateGlobalFS(const std::array<FEATURE, 3> features, float classifier, int publisher) {
+void Rover::integrateGlobalFS(const std::array<FEATURE, FEATURE_LIMIT> &features,
+        const CLASSIFIER &classifier, const int &publish) {
 
 }
 

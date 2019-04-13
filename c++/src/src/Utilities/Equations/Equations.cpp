@@ -6,12 +6,13 @@
 
 // RAY - range (0) angle (1)
 // POSE - x (0) y (1) theta (2)
-std::array<float, 2> Equations::originToPoint(const RAY &ray,
-        const std::array<float, 3> &pose,
+POSE Equations::originToPoint(const RAY &ray,
+        const POSE &pose,
         const bool &orthogonal) {
-    return {
-            (ray.range * sin(pose[THETA] + ray.angle)) + (orthogonal ? pose[Y] : pose[X]),
-            (ray.range * cos(pose[THETA] + ray.angle)) + (orthogonal ? pose[X] : pose[Y])
+    return POSE{
+            (ray.range * sin(pose.theta + ray.angle)) + (orthogonal ? pose.y : pose.x),
+            (ray.range * cos(pose.theta + ray.angle)) + (orthogonal ? pose.x : pose.y),
+            -MAXFLOAT
     };
 }
 
@@ -35,8 +36,8 @@ float Equations::normalizeValue(const float &value, const float &lowbound, const
 
 std::array<float, 2> Equations::centroid(const std::array<std::array<float, 2>, 3> &coordinatePairs) {
     return {
-            (coordinatePairs[0][X] + coordinatePairs[1][X] + coordinatePairs[2][X]) / 3,
-            (coordinatePairs[0][Y] + coordinatePairs[1][Y] + coordinatePairs[2][Y]) / 3
+            (coordinatePairs[0][static_cast<int>(pos_val::X)] + coordinatePairs[1][static_cast<int>(pos_val::X)] + coordinatePairs[2][static_cast<int>(pos_val::X)]) / 3,
+            (coordinatePairs[0][static_cast<int>(pos_val::Y)] + coordinatePairs[1][static_cast<int>(pos_val::Y)] + coordinatePairs[2][static_cast<int>(pos_val::Y)]) / 3
     };
 }
 

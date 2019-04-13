@@ -18,8 +18,8 @@ public:
     }
 
     void addRover(Rover &rover);
-    bool getRoverByName(const std::string &name, Rover &rover);
-    bool getRoverByID(const int &id, Rover &rover);
+    Rover& getRoverByName(const std::string &name);
+    Rover& getRoverByID(const int &id);
     std::unordered_map<std::string, Rover *> *getActiveRovers();
 
 private:
