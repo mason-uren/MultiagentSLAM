@@ -5,12 +5,13 @@
 #ifndef C_SLAMADAPTER_H
 #define C_SLAMADAPTER_H
 
-#include <SharedMemoryStructs.h>
-#include <SLAMConfigIn.h>
+#include <shared_structs/include/SharedMemoryStructs.h>
+#include <shared_structs/include/SLAMConfigIn.h>
+#include <templates/include/Tools/Transformation.h>
 
-#include "../../Agent/Rover/Rover.h"
-#include "../ActiveRovers/ActiveRovers.h"
-#include "../Transformation/Transformation.h"
+#include "Agent/Rover/Rover.h"
+#include "Utilities/ActiveRovers/ActiveRovers.h"
+
 
 using std::string;
 

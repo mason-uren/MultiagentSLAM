@@ -70,7 +70,7 @@ void ConfigParser::parseConfig(SYS_CONFIG_IN *in, json *dataPtr) {
                 if (!data["slamConfig"]["rovers"][rover_id].is_null()) {
                     roversConfig->valid = true;
                     roversConfig->name = data["slamConfig"]["rovers"][rover_id]["name"].get<std::string>();
-                    roversConfig->live = data["slamConfig"]["rovers"][rover_id]["live"].get<bool>();
+//                    roversConfig->live = data["slamConfig"]["rovers"][rover_id]["live"].get<bool>();
                 }
                 else {
                     roversConfig->valid = false;

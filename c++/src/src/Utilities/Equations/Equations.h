@@ -11,7 +11,7 @@
 #include <numeric>
 #include <math.h>
 
-#include <SharedMemoryStructs.h>
+#include <shared_structs/include/SharedMemoryStructs.h>
 
 class Equations {
 public:

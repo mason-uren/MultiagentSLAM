@@ -9,9 +9,9 @@
 #include <array>
 #include <tuple>
 
-#include <SharedMemoryStructs.h>
+#include <shared_structs/include/SharedMemoryStructs.h>
 
-#include "../../Utilities/Equations/Equations.h"
+#include "Utilities/Equations/Equations.h"
 
 inline int idx(const int &i) { return i % FEATURE_LIMIT; };
 

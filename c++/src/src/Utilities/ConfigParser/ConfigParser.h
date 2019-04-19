@@ -5,14 +5,13 @@
 #ifndef C_CONFIGPARSER_H
 #define C_CONFIGPARSER_H
 
-#include <SLAMConfigIn.h>
-#include <SharedMemoryStructs.h>
-#include <json.hpp>
+#include <shared_structs/include/SLAMConfigIn.h>
+#include <shared_structs/include/SharedMemoryStructs.h>
+#include <nholmann_json/include/json.hpp>
 
 #include <iostream>
 #include <sstream>
 #include <fstream>
-
 
 using json = nlohmann::json;
 

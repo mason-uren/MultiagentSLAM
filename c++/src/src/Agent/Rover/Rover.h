@@ -12,14 +12,14 @@
 #define BOOST_ALLOW_DEPRECATED_HEADERS
 
 #include <functional>
-#include <SLAMConfigIn.h>
-#include <RoverInterface.h>
+#include <shared_structs/include/SLAMConfigIn.h>
+#include <interfaces/include/RoverInterface.h>
 #include <boost/uuid/uuid_generators.hpp>
 
-#include "../../Slam/SEIF/Seif.h"
-#include "../../Utilities/BinaryTree/RedBlackTree.h"
-#include "../Detection/Detection.h"
-#include "../Moments/Moments.h"
+#include "Slam/Seif/Seif.h"
+#include "Utilities/RedBlackTree/RedBlackTree.h"
+#include "Agent/Detections/Detection.h"
+#include "Agent/Moments/Moments.h"
 
 using std::array;
 using std::string;
@@ -54,16 +54,27 @@ public:
     {}
     ~Rover() override = default;
 
-    Rover& operator=(const Rover &rover) {
-        if (this != &rover) {
-            lock(mtx, rover.mtx);
-            lock_guard<mutex> lhs_lk(mtx, std::adopt_lock);
-            lock_guard<mutex> rhs_lk(rover.mtx, std::adopt_lock);
-            confidence = rover.confidence;
-            pose = rover.pose;
-        }
-        return *this;
-    }
+//    Rover& operator=(const Rover &rover) {
+//        if (this != &rover) {
+//            lock(mtx, rover.mtx);
+//            lock_guard<mutex> lhs_lk(mtx, std::adopt_lock);
+//            lock_guard<mutex> rhs_lk(rover.mtx, std::adopt_lock);
+//
+//            // Not sure if this is the best imp
+//            ID = rover.ID;
+//            name = rover.name;
+//            buffer = rover.buffer;
+//            confidence = rover.confidence;
+//            pose = rover.pose;
+//            vel = rover.vel;
+//            seif = rover.seif;
+//            detection = rover.detection;
+//            localMap = rover.localMap;
+//            transformation = rover.transformation;
+//            canPublish = rover.canPublish;
+//        }
+//        return *this;
+//    }
 
     unsigned int getID() const override;
     std::string getName() const override;
