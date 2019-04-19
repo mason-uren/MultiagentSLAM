@@ -4,35 +4,35 @@
 
 #include "FeatureSet.h"
 
-void FeatureSet::connectFSCallbacks(const std::array<FeatureSetCallback, 2> &calls) {
-
-}
-
 void FeatureSet::addToSet(const FEATURE &feature, const POSE &rPose) {
-    set[this->currFeatIdx] = feature;
-    incidentOrient[this->currFeatIdx] = rPose.theta;
-    this->incrPtr();
-    if (this->isSetFull()) {
-        this->analyzeFeats();
-        this->publishSet();
+    set[currFeatIdx] = feature;
+    incidentOrient[currFeatIdx] = rPose.theta;
+    incrPtr();
+    if (isSetFull()) {
+        analyzeFeats();
     }
 }
 
-void FeatureSet::publishSet() {
+bool FeatureSet::readyToPublish() {
+    return isSetFull();
+}
+
+std::tuple<std::array<FEATURE, FEATURE_LIMIT>, CLASSIFIER> FeatureSet::publishSet() {
     std::cout << "Publishing Set" << std::endl;
     std::cout << "Area : " << classifier.area << std::endl;
     std::cout << "Orientation : " << classifier.orientation << std::endl;
     std::cout << "Classifier : " << classifier.signature << std::endl;
+    return std::tuple<std::array<FEATURE, FEATURE_LIMIT>, CLASSIFIER>{set, classifier};
 }
 
 void FeatureSet::incrPtr() {
-    ++this->currFeatIdx %= FEATURE_LIMIT;
+    ++currFeatIdx %= FEATURE_LIMIT;
 }
 
 void FeatureSet::analyzeFeats() {
-    this->fsArea();
-    this->fsOrientation();
-    this->fsSignature();
+    fsArea();
+    fsOrientation();
+    fsSignature();
 }
 
 bool FeatureSet::isSetFull() {
@@ -40,7 +40,7 @@ bool FeatureSet::isSetFull() {
     if (!run) {
         run = true;
     }
-    return !static_cast<bool>(this->currFeatIdx % FEATURE_LIMIT);
+    return !static_cast<bool>(currFeatIdx % FEATURE_LIMIT);
 }
 
 void FeatureSet::fsArea() {
@@ -57,6 +57,9 @@ void FeatureSet::fsOrientation() {
     for (int i = 0; i < FEATURE_LIMIT; i++) {
         classifier.orientation += Equations::getInstance()->wrapTheta(set[i].incidentRay.angle + incidentOrient[i]);
     }
+
+    // To be retreived by `integrateGlobalFS()`
+    set[0].pose.theta = classifier.orientation;
 }
 
 void FeatureSet::fsSignature() {

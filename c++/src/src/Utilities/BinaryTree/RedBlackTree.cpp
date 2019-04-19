@@ -8,8 +8,8 @@ const std::shared_ptr<normal> Node::distribution(new normal());
 
 bool RedBlackTree::findMLClassifier(const CLASSIFIER &classifier, unsigned long &index) {
     Node *node;
-    float prob = 0;
-    NODE_PTR currNodePtr = NODE_PTR();
+    float prob{0};
+    auto currNodePtr{NODE_PTR()};
     this->setChild(&currNodePtr, this->root);
 
     while (true) {
@@ -36,11 +36,16 @@ bool RedBlackTree::findMLClassifier(const CLASSIFIER &classifier, unsigned long 
         else if (classifier.signature < node->classifier->signature) {
             currNodePtr = *node->leftChild;
         }
+        // Identical signatures
+        else {
+            index = currNodePtr.node_ptr;
+            return true;
+        }
     }
 }
 
 void RedBlackTree::addToTree(const CLASSIFIER &classifier, const std::array<FEATURE, 3> &features) {
-    Node *node = this->getNodeAt(&(this->availableIndexPtr));
+    auto *node{this->getNodeAt(&(this->availableIndexPtr))};
     *node->classifier = classifier;
     *node->featureSet = features;
     node->saveLocationPtr(this->availableIndexPtr);
@@ -69,8 +74,8 @@ float RedBlackTree::orientationLikelihood(const float &orient) {
 
 unsigned long RedBlackTree::singleRotation(const unsigned long &nodeIndex, const dir &direction) {
     unsigned long tempPtr;
-    NODE_PTR otherPtr = NODE_PTR();
-    Node *node = this->getNodeAt(&nodeIndex);
+    auto otherPtr{NODE_PTR()};
+    auto *node{this->getNodeAt(&nodeIndex)};
     Node *other;
 
     if (!direction) {
@@ -95,7 +100,7 @@ unsigned long RedBlackTree::singleRotation(const unsigned long &nodeIndex, const
 }
 
 unsigned long RedBlackTree::doubleRotation(const unsigned long &nodeIndex, const dir &direction) {
-    Node *ref = this->getNodeAt(&nodeIndex);
+    auto *ref{this->getNodeAt(&nodeIndex)};
     unsigned long tempPtr;
 
     bool hasLeaf = (!direction) ?
@@ -146,7 +151,7 @@ void RedBlackTree::balanaceTree(const float &signature) {
     }
     else {
         // False tree root
-        Node head = Node();
+        auto head{Node()};
         Node *grandparent = nullptr, *temp = nullptr, *parent = nullptr, *iterator = nullptr;
         dir direction = dir::LEFT;
         dir lastDir = dir::LEFT;

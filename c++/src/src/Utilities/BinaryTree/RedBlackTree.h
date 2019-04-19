@@ -34,9 +34,9 @@ public:
     ~RedBlackTree() = default;
 
     bool findMLClassifier(const CLASSIFIER &classifier, unsigned long &index);
-    void addToTree(const CLASSIFIER &classifier, const std::array<FEATURE, 3> &features);
+    void addToTree(const CLASSIFIER &classifier, const std::array<FEATURE, FEATURE_LIMIT> &features);
     void resetTree();
-    void getFeaturesFromNode(std::array<FEATURE, 3> &featuresToPopulate,
+    void getFeaturesFromNode(std::array<FEATURE, FEATURE_LIMIT> &featuresToPopulate,
             const unsigned long &nodeIndexPtr);
 
     // For testing purposes only!

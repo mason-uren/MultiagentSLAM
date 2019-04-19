@@ -12,6 +12,7 @@
 #include <unordered_map>
 #include <cmath>
 #include <limits>
+#include <future>         // std::async, std::future
 #include <Eigen/Dense>
 
 #include <SharedMemoryStructs.h>
@@ -20,6 +21,7 @@
 
 #include "../../Agent/Moments/Moments.h"
 #include "../../Utilities/Equations/Equations.h"
+#include "../FeatureSet/FeatureSet.h"
 
 enum relation {
     EQUIV = 0,
@@ -27,9 +29,14 @@ enum relation {
     HIGHER,
 };
 
-typedef std::function<void(FEATURE, float *)> FeatureCallback;
-
 inline unsigned long featIdx(const unsigned long &idx) { return 3 * idx + 3; }
+
+template<typename Enum>
+constexpr typename std::underlying_type<Enum>::type num(const Enum &anEnum) noexcept {
+    return (u_long) static_cast<typename std::underlying_type<Enum>::type>(anEnum);
+};
+
+class FeatureSet;
 
 class Seif {
 public:
@@ -44,7 +51,7 @@ public:
                 (seifConfig->featureDistInM * 2)) * maxFeatures), // Diameter of feature marker
         recordedFeatures(new std::vector<FEATURE>(seifConfig->maxFeatures, FEATURE{})),
         activeFeatures(new std::vector<FEATURE>((u_long) maxActiveFeatures, FEATURE{})),
-        toDeactivate(new FEATURE{.correspondence = -MAXFLOAT}),
+        toDeactivate(new FEATURE{}),
         informationMatrix(new Matrix<float>(N, N)),
         informationVector(new Matrix<float>(N)),
         stateEstimate(new Matrix<float>(N)),
@@ -63,21 +70,20 @@ public:
         zHat(new Matrix<float>(ELEMENT_SIZE)),
         H(new Matrix<float>(ELEMENT_SIZE, N))
     {
+        // Init
         for (u_long i = 0; i < ELEMENT_SIZE; i++) {
-            F_X->at(i, i) = 1;
-            motionCov->at(i, i) = seifConfig->R[i];
-            measurementCov->at(i, i) = seifConfig->Q[i];
+            (*F_X)[i][i] = 1;
+            (*motionCov)[i][i] = seifConfig->R[i];
+            (*measurementCov)[i][i] = seifConfig->Q[i];
             // Need to mark <x, y, theta> as observed
-            informationMatrix->at(i, i) = 1;
+            (*informationMatrix)[i][i] = 1;
         }
+        toDeactivate->correspondence = -MAXFLOAT;
     }
     ~Seif() = default;
 
-    void connectFeatureCallback(FeatureCallback &callback);
     void motionUpdate(const VELOCITY &velocity);
     POSE stateEstimateUpdate();
-
-    // Run on separate Thread
     void measurementUpdate(const RAY &incidentRay);
     void sparsification();
 
@@ -86,7 +92,7 @@ public:
     void printRoverPose();
 
 private:
-    /*
+    /**
      * Functions
      */
     // For testing purposes only
@@ -133,10 +139,6 @@ private:
     static bool correspondenceSort(const FEATURE &feat, const FEATURE &other);
     static bool distanceSort(const FEATURE &featA, const FEATURE &featB);
 
-    // Run on separate Thread
-    void logFeature(const FEATURE &feature, std::array<float, 3> roverPose);
-
-
     /**
      * Variables
      */
@@ -157,9 +159,6 @@ private:
 
     std::shared_ptr<Matrix<float>> motionCov;
     std::shared_ptr<Matrix<float>> measurementCov;
-
-    // Callback
-    std::shared_ptr<FeatureCallback> callback;
 
     // Motion Update (vars)
     std::shared_ptr<Matrix<float>> F_X;

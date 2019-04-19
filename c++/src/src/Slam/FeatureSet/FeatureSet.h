@@ -7,32 +7,39 @@
 
 #include <iostream>
 #include <array>
+#include <tuple>
+
 #include <SharedMemoryStructs.h>
 
 #include "../../Utilities/Equations/Equations.h"
 
-#define FEATURE_LIMIT 3
-#define SIGNATURE_MAX 100
-
-typedef std::function<void(FEATURE[FEATURE_LIMIT], float[2])> FeatureSetCallback;
+typedef std::function<void(const std::array<FEATURE, FEATURE_LIMIT> &fs, const CLASSIFIER &classifier)> FeatureSetCallback;
 
 inline int idx(const int &i) { return i % FEATURE_LIMIT; };
 
 class FeatureSet {
+    friend class Seif;
 public:
-    FeatureSet() :
-        set(std::array<FEATURE, FEATURE_LIMIT>()),
-        incidentOrient(std::array<float, FEATURE_LIMIT>()),
-        classifier(CLASSIFIER{}),
-        currFeatIdx(0)
-    {}
-    ~FeatureSet() = default;
+    static FeatureSet *getInstance() {
+        static FeatureSet instance;
+        return &instance;
+    }
 
-    void connectFSCallbacks(const std::array<FeatureSetCallback, 2> &calls);
+//    void connectFSCallbacks(const std::array<FeatureSetCallback, 2> &calls);
     void addToSet(const FEATURE &feature, const POSE &rPose);
-    void publishSet();
+    bool readyToPublish();
+    std::tuple<std::array<FEATURE, FEATURE_LIMIT>, CLASSIFIER> publishSet();
 
 private:
+    FeatureSet() :
+            set(std::array<FEATURE, FEATURE_LIMIT>()),
+            incidentOrient(std::array<float, FEATURE_LIMIT>()),
+            classifier(CLASSIFIER{}),
+            currFeatIdx(0)
+    {}
+    FeatureSet(const FeatureSet &);
+    void operator=(const FeatureSet &);
+
     void incrPtr();
     void analyzeFeats();
     bool isSetFull();
@@ -45,7 +52,6 @@ private:
     CLASSIFIER classifier; // TODO classifier may have to be reset each time a feature set is built
     int currFeatIdx;
 
-    std::shared_ptr<std::array<FeatureSetCallback, 2>> callbacks;
 
 };
 

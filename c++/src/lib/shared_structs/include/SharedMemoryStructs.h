@@ -9,26 +9,28 @@
 
 #define FILTER_LENGTH 64
 #define RANGE_SENSOR_COUNT 3
-#define MAX_FEATURES_IN_SET 3
+#define FEATURE_LIMIT 3
+#define SIGNATURE_MAX 100
 #define ELEMENT_SIZE 3
 #define ROS_INTERVAL 0.1
+
 
 /**
  * Enumerations
  */
 
-enum pos_val {
+enum class pos_val {
     X = 0,
     Y,
     THETA
 };
-enum measurement {
+enum class measurement {
     RANGE = 0,
     ANGLE = 1,
     CORRESPONDENCE = 2
 };
 
-enum cov_idx {
+enum class cov_idx {
     XY = 0,
     XZ = 1,
     YZ = 2,
@@ -43,13 +45,6 @@ enum class sonar_id {
     LEFT = 0,
     CENTER,
     RIGHT
-};
-
-enum class obj_type {
-    UNDEFINED = 0,
-    LONG,
-    FLOAT,
-    OBJECT
 };
 
 /**
@@ -76,6 +71,11 @@ typedef struct {
     float linear;
     float angular;
 } VELOCITY;
+
+typedef struct {
+    float x;
+    float y;
+} LOCATION;
 
 typedef struct {
     float x;

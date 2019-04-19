@@ -25,7 +25,7 @@ public:
 
     void slamUpdate();
     void logAuxilaryFeatureSet(const std::array<FEATURE, 3> &features, const CLASSIFIER &classifier, int publisher);
-    void updateTransformationByRover(const std::array<float, 3> &transformation, std::string &pairedRover);
+    void updateTransformationByRover(const POSE &transformation, const std::string &pairedRover);
     void addTransformation(std::string &roverName, Transformation *trans);
 
     // FOR TESTING PURPOSES
