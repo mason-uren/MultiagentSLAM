@@ -5,10 +5,10 @@
 #include "Moments.h"
 
 
-STATS *Moments::getMotion() {
-    return &(*this->motion);
-}
-
-STATS *Moments::getMeasurement() {
-    return &(*this->measurement);
-}
+//STATS *Moments::getMotion() {
+//    return &(*this->motion);
+//}
+//
+//STATS *Moments::getMeasurement() {
+//    return &(*this->measurement);
+//}

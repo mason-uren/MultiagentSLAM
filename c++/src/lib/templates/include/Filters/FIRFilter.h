@@ -1,13 +1,13 @@
 //
 // Created by Mason U'Ren on 2019-02-13.
 //
+#ifndef C_FIRFILTER_H
+#define C_FIRFILTER_H
 
 #include <cstddef>
 #include <cmath>
+#include <cstring>
 #include <iostream>
-
-#ifndef C_FIRFILTER_H
-#define C_FIRFILTER_H
 
 template <typename T, size_t N>
 class FIRFilter {

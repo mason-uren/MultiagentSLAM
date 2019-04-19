@@ -54,16 +54,27 @@ public:
     {}
     ~Rover() override = default;
 
-    Rover& operator=(const Rover &rover) {
-        if (this != &rover) {
-            lock(mtx, rover.mtx);
-            lock_guard<mutex> lhs_lk(mtx, std::adopt_lock);
-            lock_guard<mutex> rhs_lk(rover.mtx, std::adopt_lock);
-            confidence = rover.confidence;
-            pose = rover.pose;
-        }
-        return *this;
-    }
+//    Rover& operator=(const Rover &rover) {
+//        if (this != &rover) {
+//            lock(mtx, rover.mtx);
+//            lock_guard<mutex> lhs_lk(mtx, std::adopt_lock);
+//            lock_guard<mutex> rhs_lk(rover.mtx, std::adopt_lock);
+//
+//            // Not sure if this is the best imp
+//            ID = rover.ID;
+//            name = rover.name;
+//            buffer = rover.buffer;
+//            confidence = rover.confidence;
+//            pose = rover.pose;
+//            vel = rover.vel;
+//            seif = rover.seif;
+//            detection = rover.detection;
+//            localMap = rover.localMap;
+//            transformation = rover.transformation;
+//            canPublish = rover.canPublish;
+//        }
+//        return *this;
+//    }
 
     unsigned int getID() const override;
     std::string getName() const override;

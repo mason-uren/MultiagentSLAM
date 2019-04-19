@@ -5,6 +5,7 @@
 #ifndef C_DETECTION_H
 #define C_DETECTION_H
 
+#include <memory>
 #include <array>
 #include <IncidentRayInterface.h>
 #include <SLAMConfigIn.h>

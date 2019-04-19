@@ -2,6 +2,7 @@
 // Created by Mason U'Ren on 2019-02-21.
 //
 
+#include <limits>
 #include "Equations.h"
 
 // RAY - range (0) angle (1)
@@ -10,9 +11,9 @@ POSE Equations::originToPoint(const RAY &ray,
         const POSE &pose,
         const bool &orthogonal) {
     return POSE{
-            (ray.range * sin(pose.theta + ray.angle)) + (orthogonal ? pose.y : pose.x),
-            (ray.range * cos(pose.theta + ray.angle)) + (orthogonal ? pose.x : pose.y),
-            -MAXFLOAT
+            static_cast<float>((ray.range * sin(pose.theta + ray.angle)) + (orthogonal ? pose.y : pose.x)),
+            static_cast<float>((ray.range * cos(pose.theta + ray.angle)) + (orthogonal ? pose.x : pose.y)),
+            std::numeric_limits<float>::min()
     };
 }
 

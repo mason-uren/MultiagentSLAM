@@ -64,14 +64,14 @@ void Rover::spareExtendedInformationFilter() {
 }
 
 void Rover::integrateLocalFS(const std::array<FEATURE, FEATURE_LIMIT> &features, const CLASSIFIER &classifier) {
-    u_long idx;
+    uint16_t idx;
     if(!this->localMap->findMLClassifier(classifier, idx)) {
         this->localMap->addToTree(classifier, features);
     }
 }
 
 void Rover::integrateGlobalFS(const std::array<FEATURE, FEATURE_LIMIT> &foundFeat, const CLASSIFIER &classifier, const string &publisher) {
-    u_long idx;
+    uint16_t idx;
     if (this->localMap->findMLClassifier(classifier, idx)) {
         auto features{std::array<FEATURE, FEATURE_LIMIT>()};
         this->localMap->getFeaturesFromNode(features, idx);
@@ -122,26 +122,26 @@ void Rover::integrateFilteredPose(const POSE &pose) {
 }
 
 void Rover::updateMeans() {
-    Moments::getInstance()->getMotion()->means[num(pos_val::X)]->onlineAverage(pose->x);
-    Moments::getInstance()->getMotion()->means[num(pos_val::Y)]->onlineAverage(pose->y);
-    Moments::getInstance()->getMotion()->means[num(pos_val::THETA)]->onlineAverage(pose->theta);
+    Moments::getInstance()->motion->means[num(pos_val::X)]->onlineAverage(pose->x);
+    Moments::getInstance()->motion->means[num(pos_val::Y)]->onlineAverage(pose->y);
+    Moments::getInstance()->motion->means[num(pos_val::THETA)]->onlineAverage(pose->theta);
 }
 
 void Rover::updateVariances() {
-    Moments::getInstance()->getMotion()->variances[num(pos_val::X)]->onlineVariance(
+    Moments::getInstance()->motion->variances[num(pos_val::X)]->onlineVariance(
             pose->x,
-            Moments::getInstance()->getMotion()->means[num(pos_val::X)]->getFilteredValue());
-    Moments::getInstance()->getMotion()->variances[num(pos_val::Y)]->onlineVariance(
+            Moments::getInstance()->motion->means[num(pos_val::X)]->getFilteredValue());
+    Moments::getInstance()->motion->variances[num(pos_val::Y)]->onlineVariance(
             pose->y,
-            Moments::getInstance()->getMotion()->means[num(pos_val::Y)]->getFilteredValue());
-    Moments::getInstance()->getMotion()->variances[num(pos_val::THETA)]->onlineVariance(
+            Moments::getInstance()->motion->means[num(pos_val::Y)]->getFilteredValue());
+    Moments::getInstance()->motion->variances[num(pos_val::THETA)]->onlineVariance(
             pose->theta,
-            Moments::getInstance()->getMotion()->means[num(pos_val::THETA)]->getFilteredValue());
+            Moments::getInstance()->motion->means[num(pos_val::THETA)]->getFilteredValue());
 }
 
 void Rover::tuneConfi() {
     float sum{0};
-    for (auto variance : Moments::getInstance()->getMotion()->variances) {
+    for (auto variance : Moments::getInstance()->motion->variances) {
         sum += variance->getFilteredVariance();
     }
 

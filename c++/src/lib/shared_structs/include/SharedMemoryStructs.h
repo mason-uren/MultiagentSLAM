@@ -84,7 +84,7 @@ typedef struct {
 } POSE;
 
 typedef struct {
-    unsigned long idx{}; // TODO I don't like this here (doesn't relate to feature)
+    uint16_t idx{}; // TODO I don't like this here (doesn't relate to feature)
     float correspondence{};
     RAY incidentRay{};
     POSE pose{};

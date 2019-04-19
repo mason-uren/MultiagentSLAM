@@ -7,18 +7,22 @@
 
 #include <cstdio>
 #include <cstdlib>
-#include <fcntl.h>
-#include <zconf.h>
-#include <sys/mman.h>
-#include <SharedMemoryStructs.h>
 #include <cstring>
+
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <fcntl.h>
+
+#include <SharedMemoryStructs.h>
+
 
 class SharedMemory {
 public:
     SharedMemory() {
         !shm_unlink("/slam_config_in") ?
             printf("%s\n", "Status: unlinked shared-memory.") :
-            printf("%s\n", "Status: no shared-memory link.");
+            printf("%s\n", "Status: shared memory ready.");
         slam_md = shm_open("/slam_config_in", O_CREAT | O_RDWR | O_EXCL, 0600);
         pg_size = sysconf(_SC_PAGE_SIZE);
 
@@ -26,14 +30,15 @@ public:
         /* Set size */
         if (ftruncate(slam_md, pg_size) == -1) {
             perror("ftruncate failure");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         /* Map memory */
         virt_addr = mmap(nullptr, (size_t) pg_size, PROT_WRITE | PROT_READ, MAP_SHARED, slam_md, 0);
+        memset(virt_addr, 0, pg_size);
         if (mlock(virt_addr, (size_t) pg_size) != 0) {
             perror("mlock failure.");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
     ~SharedMemory() {
@@ -50,6 +55,7 @@ public:
     bool readMemoryIn(SYS_CONFIG_IN *configIn) {
         SYS_CONFIG_IN temp;
         memcpy(&temp, virt_addr, sizeof(SYS_CONFIG_IN));
+
         if (temp.block_id != configIn->block_id) {
             memcpy(configIn, &temp, sizeof(SYS_CONFIG_IN));
             return true;

@@ -55,5 +55,5 @@ void Detection::inverseRayWeighting() {
         resultRayX += sin((*this->incidentAngles)[ray]) * (1 - (ranges[ray] / this->sonarRangeInM));
         resultRayY += cos((*this->incidentAngles)[ray]) * (1 - (ranges[ray] / this->sonarRangeInM));
     }
-    this->setIncidentRay({minRange, atan2(resultRayX, resultRayY)});
+    this->setIncidentRay({minRange, atan2f(resultRayX, resultRayY)});
 }

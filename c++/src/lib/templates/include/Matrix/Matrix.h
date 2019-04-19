@@ -15,10 +15,34 @@
 #include <Eigen/SparseQR>
 #include <Eigen/SparseLU>
 #include <Eigen/OrderingMethods>
+
 template <class T = float>
 class Matrix {
+private:
+    typedef Eigen::Triplet<T> triplet;
+
+    Eigen::SparseMatrix<T> data{};
+    uint16_t nRows{};
+    uint16_t nCols{};
+    bool trans{};
+
+    class RowProxy {
+        Matrix& _matrix;
+        size_t _row;
+
+    public:
+        RowProxy(Matrix& matrix, size_t row) : _matrix(matrix), _row(row) {}
+        T& operator[](size_t col) {
+            if (col >= _matrix.nCols) {
+                std::cerr << "Col : index out of bounds... Exiting" << std::endl;
+                exit(EXIT_FAILURE);
+            }
+            return _matrix.data.coeffRef(_row, col);
+        };
+    };
+
 public:
-    explicit Matrix(const unsigned long &rows, const unsigned long &cols = 1) :
+    Matrix(const unsigned long &rows, const unsigned long &cols = 1) :
             data(Eigen::SparseMatrix<T, Eigen::ColMajor, long> (
                     std::max(rows, (u_long) 1), std::max(cols, (u_long) 1))),
             nRows(rows),
@@ -53,68 +77,52 @@ public:
         nCols(matrix.nCols),
         trans(matrix.trans)
     {}
+    Matrix(const Eigen::SparseMatrix<T> &matrix) :
+            data(matrix),
+            nRows((u_long) matrix.rows()),
+            nCols((u_long) matrix.cols()),
+            trans(false)
+    {}
     Matrix() = default;
     ~Matrix() = default;
 
     bool operator==(const Matrix &matrix) const;
-    T &at(const unsigned long &index);
-    auto operator[](const size_t &row);
+    auto operator()() const -> decltype(data);
+    auto operator[](const size_t &row) -> decltype(RowProxy{*this, row});
     Matrix<T> operator*(const Matrix<T> &matrix) const;
-    Matrix<T> operator-(const Matrix<T> &matrix);
-    Matrix<T> operator+(const Matrix<T> &matrix);
+    Matrix<T> operator-(const Matrix<T> &matrix) const;
+    Matrix<T> operator+(const Matrix<T> &matrix) const;
     void operator*=(const float &scalar);
     void operator-=(const Matrix<T> &matrix);
     void operator+=(const Matrix<T> &matrix);
+    auto at(const uint16_t &index) -> decltype(data.coeffRef(index, 0));
     void identity();
     void transpose();
     void invert();
     bool canInvert();
-    unsigned long numRows() const;
-    unsigned long numCols() const;
+    auto numRows() const -> decltype(nRows);
+    auto numCols() const -> decltype(nCols);
     void resetMatrix();
     void zeroMatrix();
 
     // For testing purposes only
     void print();
 
-private:
-    explicit Matrix(const Eigen::SparseMatrix<T, Eigen::ColMajor, long> &matrix) :
-            data(matrix),
-            nRows((u_long) matrix.rows()),
-            nCols((u_long) matrix.cols()),
-            trans(false)
-    {}
 
-    typedef Eigen::Triplet<T> triplet;
-
-    Eigen::SparseMatrix<T> data{};
-    unsigned long nRows{};
-    unsigned long nCols{};
-    bool trans{};
-
-    class RowProxy {
-        Matrix& _matrix;
-        size_t _row;
-
-    public:
-        RowProxy(Matrix& matrix, size_t row) : _matrix(matrix), _row(row) {}
-        T& operator[](size_t col) {
-            if (col >= _matrix.nCols) {
-                std::cerr << "Col : index out of bounds... Exiting" << std::endl;
-                exit(EXIT_FAILURE);
-            }
-            return _matrix.data.coeffRef(_row, col);
-        };
-    };
 };
 
-template <typename T>
-bool Matrix<T>::operator==(const Matrix<T> &matrix) const {
+template <class T>
+bool Matrix<T>::operator==(const Matrix &matrix) const {
     return data.isApprox(matrix.data, 1E-3);
 }
 
-template<class T>
-auto Matrix<T>::operator[](const size_t &row) {
+template <class T>
+auto Matrix<T>::operator()() const -> decltype(data) {
+    return data;
+}
+
+template <class T>
+auto Matrix<T>::operator[](const size_t &row) -> decltype(RowProxy{*this, row}) {
     if (row >= nRows) {
         std::cerr << "Row : index out of bounds... Exiting" << std::endl;
         exit(EXIT_FAILURE);
@@ -122,9 +130,69 @@ auto Matrix<T>::operator[](const size_t &row) {
     return RowProxy{*this, row};
 }
 
+template <class T>
+Matrix<T> Matrix<T>::operator*(const Matrix<T> &matrix) const {
+    if (nCols != matrix.nRows) {
+        std::cerr << "Cannot multiply given matrices." << std::endl;
+        std::cerr << "dims : A(" << nRows << ", " << nCols << ")" << std::endl;
+        std::cerr << "dims : B(" << matrix.nRows << ", " << matrix.nCols << ")" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    return Matrix<T>((data * matrix.data).pruned(1E-3));
+}
+
+template <class T>
+Matrix<T> Matrix<T>::operator-(const Matrix<T> &matrix) const {
+    if (nRows != matrix.nRows && nCols != matrix.nCols) {
+        std::cerr << "Cannot multiply given matrices." << std::endl;
+        std::cerr << "dims : A(" << nRows << ", " << nCols << ")" << std::endl;
+        std::cerr << "dims : B(" << matrix.nRows << ", " << matrix.nCols << ")" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    return Matrix<T>(data - matrix.data);
+}
+
+template <class T>
+Matrix<T> Matrix<T>::operator+(const Matrix<T> &matrix) const {
+    if (nRows != matrix.nRows && nCols != matrix.nCols) {
+        std::cerr << "Cannot multiply given matrices." << std::endl;
+        std::cerr << "dims : A(" << nRows << ", " << nCols << ")" << std::endl;
+        std::cerr << "dims : B(" << matrix.nRows << ", " << matrix.nCols << ")" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    return Matrix<T>(data + matrix.data);
+}
+
+template <class T>
+void Matrix<T>::operator*=(const float &scalar) {
+    data *= scalar;
+}
+
+template <class T>
+void Matrix<T>::operator-=(const Matrix<T> &matrix) {
+    if (nRows != matrix.nRows && nCols != matrix.nCols) {
+        std::cerr << "Cannot multiply given matrices." << std::endl;
+        std::cerr << "dims : A(" << nRows << ", " << nCols << ")" << std::endl;
+        std::cerr << "dims : B(" << matrix.nRows << ", " << matrix.nCols << ")" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    data -= matrix.data;
+}
+
+template <class T>
+void Matrix<T>::operator+=(const Matrix<T> &matrix) {
+    if (nRows != matrix.nRows && nCols != matrix.nCols) {
+        std::cerr << "Cannot multiply given matrices." << std::endl;
+        std::cerr << "dims : A(" << nRows << ", " << nCols << ")" << std::endl;
+        std::cerr << "dims : B(" << matrix.nRows << ", " << matrix.nCols << ")" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    data += matrix.data;
+}
+
 // To be used exclusively with vectors
-template<class T>
-T &Matrix<T>::at(const unsigned long &index) {
+template <class T>
+auto Matrix<T>::at(const uint16_t &index) -> decltype(data.coeffRef(index, 0)) {
     if (index >= (nRows * nCols)) {
         std::cout << "Vector : index out of bounds... Exiting" << std::endl;
         exit(EXIT_FAILURE);
@@ -132,19 +200,19 @@ T &Matrix<T>::at(const unsigned long &index) {
     return data.coeffRef(index, 0);
 }
 
-template<class T>
+template <class T>
 void Matrix<T>::identity() {
     data.setIdentity();
 }
 
-template <typename T>
+template <class T>
 void Matrix<T>::transpose() {
     trans = !trans;
     std::swap(nRows, nCols);
     data = Eigen::SparseMatrix<T>(data.transpose());
 }
 
-template<class T>
+template <class T>
 void Matrix<T>::invert() {
     if (!data.nonZeros()) {
         return;
@@ -158,7 +226,7 @@ void Matrix<T>::invert() {
 //    }
 }
 
-template<class T>
+template <class T>
 bool Matrix<T>::canInvert() {
     Eigen::SparseLU<Eigen::SparseMatrix<T, Eigen::ColMajor, long>, Eigen::COLAMDOrdering<long>> solver;
     solver.analyzePattern(data);
@@ -172,22 +240,22 @@ bool Matrix<T>::canInvert() {
     return true;
 }
 
-template <typename T>
-unsigned long Matrix<T>::numRows() const {
+template <class T>
+auto Matrix<T>::numRows() const -> decltype(nRows){
     return nRows;
 }
 
-template <typename T>
-unsigned long Matrix<T>::numCols() const {
+template <class T>
+auto Matrix<T>::numCols() const -> decltype(nCols){
     return nCols;
 }
 
-template <typename T>
+template <class T>
 void Matrix<T>::print() {
     std::cout << Eigen::Matrix<T, -1, -1>(data) << std::endl;
 }
 
-template<class T>
+template <class T>
 void Matrix<T>::resetMatrix() {
     if (trans) {
         trans = !trans;
@@ -196,71 +264,9 @@ void Matrix<T>::resetMatrix() {
     data = Eigen::SparseMatrix<T, Eigen::ColMajor, long>(nRows, nCols);
 }
 
-template <typename T>
+template <class T>
 void Matrix<T>::zeroMatrix() {
     data.setZero();
-}
-
-template<class T>
-Matrix<T> Matrix<T>::operator*(const Matrix<T> &matrix) const {
-    if (nCols != matrix.nRows) {
-        std::cerr << "Cannot multiply given matrices." << std::endl;
-        std::cerr << "dims : A(" << nRows << ", " << nCols << ")" << std::endl;
-        std::cerr << "dims : B(" << matrix.nRows << ", " << matrix.nCols << ")" << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    return static_cast<Matrix<T>>((data * matrix.data).pruned(1E-3));
-}
-
-template<class T>
-Matrix<T> Matrix<T>::operator-(const Matrix<T> &matrix) {
-    if (nRows != matrix.nRows && nCols != matrix.nCols) {
-        std::cerr << "Cannot multiply given matrices." << std::endl;
-        std::cerr << "dims : A(" << nRows << ", " << nCols << ")" << std::endl;
-        std::cerr << "dims : B(" << matrix.nRows << ", " << matrix.nCols << ")" << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    return static_cast<Matrix<T>>(data - matrix.data);
-}
-
-template<class T>
-Matrix<T> Matrix<T>::operator+(const Matrix<T> &matrix) {
-    if (nRows != matrix.nRows && nCols != matrix.nCols) {
-        std::cerr << "Cannot multiply given matrices." << std::endl;
-        std::cerr << "dims : A(" << nRows << ", " << nCols << ")" << std::endl;
-        std::cerr << "dims : B(" << matrix.nRows << ", " << matrix.nCols << ")" << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    return static_cast<Matrix<T>>(data + matrix.data);
-}
-
-
-
-template<class T>
-void Matrix<T>::operator*=(const float &scalar) {
-    data *= scalar;
-}
-
-template<class T>
-void Matrix<T>::operator-=(const Matrix<T> &matrix) {
-    if (nRows != matrix.nRows && nCols != matrix.nCols) {
-        std::cerr << "Cannot multiply given matrices." << std::endl;
-        std::cerr << "dims : A(" << nRows << ", " << nCols << ")" << std::endl;
-        std::cerr << "dims : B(" << matrix.nRows << ", " << matrix.nCols << ")" << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    data -= matrix.data;
-}
-
-template<class T>
-void Matrix<T>::operator+=(const Matrix<T> &matrix) {
-    if (nRows != matrix.nRows && nCols != matrix.nCols) {
-        std::cerr << "Cannot multiply given matrices." << std::endl;
-        std::cerr << "dims : A(" << nRows << ", " << nCols << ")" << std::endl;
-        std::cerr << "dims : B(" << matrix.nRows << ", " << matrix.nCols << ")" << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    data += matrix.data;
 }
 
 #endif //MULTIAGENTSLAM_MATRIX_H

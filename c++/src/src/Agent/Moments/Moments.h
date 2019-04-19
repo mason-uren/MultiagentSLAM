@@ -14,25 +14,25 @@
 #include <VarianceFilter.h>
 #include <CovarianceFilter.h>
 #include <SharedMemoryStructs.h>
+#include <boost/shared_ptr.hpp>
 
 typedef struct {
-    std::array<MeanFilter<float> *, ELEMENT_SIZE> means {
-            new MeanFilter<float>(),
-            new MeanFilter<float>(),
-            new MeanFilter<float>()
-    };
-    std::array<VarianceFilter<float> *, ELEMENT_SIZE> variances {
+    std::array<MeanFilter<float> *, ELEMENT_SIZE> means {{
+         new MeanFilter<float>(),
+         new MeanFilter<float>(),
+         new MeanFilter<float>()
+    }};
+    std::array<VarianceFilter<float> *, ELEMENT_SIZE> variances {{
             new VarianceFilter<float>(),
             new VarianceFilter<float>(),
             new VarianceFilter<float>()
-    };
-    std::array<CovarianceFilter<float> *, ELEMENT_SIZE> covariances {
+    }};
+    std::array<CovarianceFilter<float> *, ELEMENT_SIZE> covariances {{
             new CovarianceFilter<float>(),
             new CovarianceFilter<float>(),
             new CovarianceFilter<float>()
-    };
+    }};
 } STATS;
-
 
 class Moments {
 public:
@@ -41,20 +41,20 @@ public:
         return &instance;
     }
 
-    STATS * getMotion();
-    STATS * getMeasurement();
+    Moments(Moments const &) = delete;
+    void operator=(Moments const &) = delete;
 
+    std::shared_ptr<STATS> motion;
+    std::shared_ptr<STATS> measurement;
 
 private:
     Moments() :
             motion(new STATS{}),
             measurement(new STATS{})
     {}
-    Moments(Moments const &) = delete;
-    void operator=(Moments const &) = delete;
 
-    std::shared_ptr<STATS> motion;
-    std::shared_ptr<STATS> measurement;
+
+
 
 
 

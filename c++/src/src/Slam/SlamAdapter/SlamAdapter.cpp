@@ -5,28 +5,23 @@
 #include "SlamAdapter.h"
 
 void SlamAdapter::updateKinematics(const string &rName, const POSE &pose, const VELOCITY &vel) {
-    *rover = ActiveRovers::getInstance()->getRoverByName(rName);
-    rover->updatePoseVel(pose, vel);
+    ActiveRovers::getInstance()->getRoverByName(rName).updatePoseVel(pose, vel);
 }
 
 void SlamAdapter::updateDetections(const string &rName, const std::array<SONAR, 3> &sonar) {
-    *rover = ActiveRovers::getInstance()->getRoverByName(rName);
-    rover->updateMLIncidentRay(sonar);
+    ActiveRovers::getInstance()->getRoverByName(rName).updateMLIncidentRay(sonar);
 }
 
 void SlamAdapter::recordAuxilaryRoversBelief(const string &rName, const POSE &pose, const float confidence) {
-    *rover = ActiveRovers::getInstance()->getRoverByName(rName);
-    rover->updateBelief(pose, confidence);
+    ActiveRovers::getInstance()->getRoverByName(rName).updateBelief(pose, confidence);
 }
 
 void SlamAdapter::slamUpdate(const string &rName) {
-    *rover = ActiveRovers::getInstance()->getRoverByName(rName);
-    rover->spareExtendedInformationFilter();
+    ActiveRovers::getInstance()->getRoverByName(rName).spareExtendedInformationFilter();
 }
 
 void SlamAdapter::logAuxilaryFeatureSet(const string &rName, const std::array<FEATURE, 3> &features, const CLASSIFIER &classifier, const string &publisher) {
-    *rover = ActiveRovers::getInstance()->getRoverByName(rName);
-    rover->integrateGlobalFS(features, classifier, publisher);
+    ActiveRovers::getInstance()->getRoverByName(rName).integrateGlobalFS(features, classifier, publisher);
 }
 
 void SlamAdapter::updateTransformationByRover(const POSE &transformation, const std::string &pairedRover) {

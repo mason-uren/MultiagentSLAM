@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.2)
 project(MultiAgentSLAM VERSION 1.0.1 LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 11)
 
 # Modules
 include("src/cmake/Modules/FindBoost.cmake")
@@ -32,7 +32,7 @@ set(
 
 # EXECUTABLE
 add_executable(
-        ${PROJECT_NAME} src/src/ros_adapter.cpp ${PROJECT_SOURCES}
+        ${PROJECT_NAME} src/src/Adapter.cpp ${PROJECT_SOURCES}
 )
 
 target_include_directories(${PROJECT_NAME}
@@ -41,10 +41,24 @@ target_include_directories(${PROJECT_NAME}
         PRIVATE src/lib/interfaces/include
         PRIVATE src/lib/templates/include/Filters
         PRIAVTE src/lib/templates/include/Matrix
+        PRIVATE src/lib/templates/include/Tools
 )
 
-target_link_libraries(${PROJECT_NAME}
-        PUBLIC
+
+if(UNIX AND NOT APPLE)
+    target_link_libraries(${PROJECT_NAME}
+            PUBLIC
             Boost::boost
             Eigen3::Eigen
-)
+            rt
+    )
+elseif(APPLE)
+    target_link_libraries(${PROJECT_NAME}
+            PUBLIC
+            Boost::boost
+            Eigen3::Eigen
+    )
+endif()
+
+
+

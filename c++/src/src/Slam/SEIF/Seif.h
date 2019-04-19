@@ -18,13 +18,14 @@
 #include <SharedMemoryStructs.h>
 #include <SLAMConfigIn.h>
 #include <Matrix.h>
+#include <cpp14_utils.h>
 
 #include "../../Agent/Moments/Moments.h"
 #include "../../Utilities/Equations/Equations.h"
 #include "../FeatureSet/FeatureSet.h"
 
-using std::make_unique;
 using std::unique_ptr;
+using std::make_unique;
 
 enum relation {
     EQUIV = 0,
@@ -32,7 +33,7 @@ enum relation {
     HIGHER,
 };
 
-inline constexpr unsigned long featIdx(const unsigned long &idx) { return 3 * idx + 3; }
+inline constexpr uint16_t featIdx(const unsigned long &idx) { return 3 * idx + 3; }
 
 class Seif {
 public:
@@ -67,14 +68,14 @@ public:
         H(new Matrix<>(ELEMENT_SIZE, N))
     {
         // Init
-        for (u_long i = 0; i < ELEMENT_SIZE; i++) {
+        for (size_t i = 0; i < ELEMENT_SIZE; i++) {
             (*F_X)[i][i] = 1;
             (*motionCov)[i][i] = seifConfig->R[i];
             (*measurementCov)[i][i] = seifConfig->Q[i];
             // Need to mark <x, y, theta> as observed
             (*informationMatrix)[i][i] = 1;
         }
-        toDeactivate->correspondence = -MAXFLOAT;
+        toDeactivate->correspondence = std::numeric_limits<float>::min();
     }
     ~Seif() = default;
 
@@ -111,14 +112,14 @@ private:
     void deriveFeature(FEATURE &feature, const RAY &incidentRay);
     bool hasBeenObserved(const float &correspondence);
     void addFeature(FEATURE &feature);
-    u_long &nextFeatureIndex();
+    uint16_t &nextFeatureIndex();
     void organizeFeatures();
     relation comparison(const float &identifier, const float &otherID);
     bool isActiveFull();
     void updateDeltaPos(const POSE &featPose);
     void update_q();
     void updateZHat(const float &correspondence);
-    void updateH(const unsigned long &idx);
+    void updateH(const uint16_t &idx);
     void infoVecSummation(const FEATURE &feature);
     void infoMatrixSummation();
 
@@ -138,9 +139,9 @@ private:
      */
     static POSE rPose;
 
-    const unsigned long N;
-    unsigned long featuresFound;
-    unsigned long maxFeatures;
+    const uint16_t N;
+    uint16_t featuresFound;
+    uint16_t maxFeatures;
     int maxActiveFeatures;
     float minFeatureDist;
     float maxCorrespondence;

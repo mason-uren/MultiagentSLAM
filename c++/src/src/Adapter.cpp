@@ -1,6 +1,8 @@
-#include "ros_adapter.h"
+#include "Adapter.h"
 
 using json = nlohmann::json;
+using lim_float = std::numeric_limits<float>;
+
 using std::unique_ptr;
 using std::make_unique;
 using std::string;
@@ -13,17 +15,17 @@ int main() {
 
 //    testEnv();
 
-//    printActiveRovers();
-//    testMeanFilter();
-//    testVarianceFilter();
-//    testFIRFilter();
-//    testTransformations();
-//    testMoments();
-//    testEquations();
-//    testRedBlackTree();
-//    testDetections();
-//    testMatrix();
-//    testMatrixMan();
+    printActiveRovers();
+    testMeanFilter();
+    testVarianceFilter();
+    testFIRFilter();
+    testTransformations();
+    testMoments();
+    testEquations();
+    testRedBlackTree();
+    testDetections();
+    testMatrix();
+    testMatrixMan();
     testSeif();
 //    testFeatureSet();
     return 0;
@@ -51,13 +53,14 @@ void loadDefaultConfig() {
 }
 
 void jsonInitialize() {
-    while (true) {
-        if (!sharedMemory->readMemoryIn(&(*systemConfig)) && systemConfig->config.hash != 0) {
-            std::cout << "Configuration Loaded." << std::endl;
-            break;
-        }
-        usleep(500);
-    }
+    // TODO : why don't we need this
+//    while (true) {
+//        if (!sharedMemory->readMemoryIn(&(*systemConfig)) && systemConfig->config.hash != 0) {
+//            std::cout << "Configuration Loaded." << std::endl;
+//            break;
+//        }
+//        usleep(500);
+//    }
 
     SlamAdapter::getInstance();
     ActiveRovers::getInstance();
@@ -106,7 +109,9 @@ void sonarHandler(const std::array<SONAR, 3> &sonar) {
 
 void slamHandler() {
     SlamAdapter::getInstance()->slamUpdate(roverName);
-    // TODO: should check rover to see if
+    publishBelief(*ActiveRovers::getInstance()->getRoverByName(roverName).getCurrentPose(),
+                  ActiveRovers::getInstance()->getRoverByName(roverName).getConfidence());
+
 }
 
 
@@ -158,9 +163,12 @@ void publishFeatureSet(const std::array<FEATURE, FEATURE_LIMIT> &featureSet, con
     if (FeatureSet::getInstance()->readyToPublish()) {
         auto FS = FeatureSet::getInstance()->publishSet();
         publishFeatureSet(get<0>(FS), get<1>(FS));
-        rover = ActiveRovers::getInstance()->getRoverByName(roverName);
-        rover.integrateLocalFS(get<0>(FS), get<1>(FS));
+        ActiveRovers::getInstance()->getRoverByName(roverName).integrateLocalFS(get<0>(FS), get<1>(FS));
     }
+}
+
+void publishBelief(const POSE &pose, const float &confi) {
+    std::cout << "GLOBAL PUBLISHED BELIEF" << std::endl;
 }
 
 // TODO ROS stuff
@@ -259,9 +267,9 @@ void testTransformations() {
 }
 
 void testMoments() {
-    std::array<MeanFilter<float> *, 3> means = (*Moments::getInstance()->getMotion()).means;
-    std::array<VarianceFilter<float> *, 3> var = (*Moments::getInstance()->getMotion()).variances;
-    std::array<CovarianceFilter<float> *, 3> covariances = (*Moments::getInstance()->getMotion()).covariances;;
+    std::array<MeanFilter<float> *, 3> means = (*Moments::getInstance()->motion).means;
+    std::array<VarianceFilter<float> *, 3> var = (*Moments::getInstance()->motion).variances;
+    std::array<CovarianceFilter<float> *, 3> covariances = (*Moments::getInstance()->motion).covariances;;
 
     std::vector<long> x_vals {1, 2, 3};
     std::vector<long> y_vals {4, 5, 6};
@@ -359,18 +367,22 @@ void testRedBlackTree() {
     }
 
     // Create tree
-    rover = ActiveRovers::getInstance()->getRoverByName("achilles");
     for (auto classifier : sampleClassifiers) {
-        rover.getLocalMap()->addToTree(classifier, sampleFeatures);
+        ActiveRovers::getInstance()->getRoverByName("achilles")
+        .getLocalMap()->addToTree(classifier, sampleFeatures);
     }
 
     // Check if tree is balanced
-    std::cout << "Root : " << rover.getLocalMap()->getRoot() << std::endl;
-    rover.getLocalMap()->printTree(new NODE_PTR{.valid = true, .node_ptr = *(rover.getLocalMap()->getRoot())}, 0);
+    std::cout << "Root : " << ActiveRovers::getInstance()->getRoverByName("achilles").getLocalMap()->getRoot() << std::endl;
+    ActiveRovers::getInstance()->getRoverByName("achilles").getLocalMap()->printTree(
+            new NODE_PTR{
+                .valid = true,
+                .node_ptr = *(ActiveRovers::getInstance()->getRoverByName("achilles").getLocalMap()->getRoot())}
+                , 0);
 
     // Check ML classifier (looking for like features)
-    unsigned long index = 0;
-    (rover.getLocalMap())->findMLClassifier(dummyClassifier, index);
+    uint16_t index = 0;
+    (ActiveRovers::getInstance()->getRoverByName("achilles").getLocalMap())->findMLClassifier(dummyClassifier, index);
     std::cout << "Find Classifier (" << ((index == 6) ? "PASS" : "FAIL") << ")" << std::endl;
 
     // Get features from node
@@ -381,7 +393,7 @@ void testRedBlackTree() {
     };
 
     // Testing whether features are passed by reference
-    rover.getLocalMap()->getFeaturesFromNode(featuresToPop, index);
+    ActiveRovers::getInstance()->getRoverByName("achilles").getLocalMap()->getFeaturesFromNode(featuresToPop, index);
     float testVal = featuresToPop[0].pose.x;
     featuresToPop[0].pose.x = -1.2;
     std::cout << "Get features from node (" <<
@@ -389,8 +401,8 @@ void testRedBlackTree() {
         "PASS" : "FAIL") << ")" << std::endl;
 
     // Reset Tree
-    rover.getLocalMap()->resetTree();
-    std::cout << "Reset Tree ("  << ((*rover.getLocalMap()->getRoot()) ? "FAIL" : "PASS") << ")" << std::endl;
+    ActiveRovers::getInstance()->getRoverByName("achilles").getLocalMap()->resetTree();
+    std::cout << "Reset Tree ("  << ((*ActiveRovers::getInstance()->getRoverByName("achilles").getLocalMap()->getRoot()) ? "FAIL" : "PASS") << ")" << std::endl;
 }
 
 void testDetections() {
@@ -400,10 +412,9 @@ void testDetections() {
         SONAR{.id = sonar_id ::RIGHT, .observedRange = 1}
     };
 
-    rover = ActiveRovers::getInstance()->getRoverByName("achilles");
-    rover.getDetections()->MLIncidentRay(sampleSonar);
-    std::cout << "Detection : " << rover.getDetections()->hasIncidentRay() << std::endl;
-    RAY *ray = rover.getDetections()->getIncidentRay();
+    ActiveRovers::getInstance()->getRoverByName("achilles").getDetections()->MLIncidentRay(sampleSonar);
+    std::cout << "Detection : " << ActiveRovers::getInstance()->getRoverByName("achilles").getDetections()->hasIncidentRay() << std::endl;
+    RAY *ray = ActiveRovers::getInstance()->getRoverByName("achilles").getDetections()->getIncidentRay();
 }
 
 void testMatrix() {
@@ -596,25 +607,25 @@ void testSeif() {
             seif->motionUpdate(velocity);
             seif->stateEstimateUpdate();
             seif->measurementUpdate(rays[j]);
-            if (rays[j].range != -MAXFLOAT && rays[j].angle != -MAXFLOAT) {
+            if (rays[j].range != lim_float::min() && rays[j].angle != lim_float::min()) {
                 float x = rays[j].range * sin(rays[j].angle);
                 float y = rays[j].range * cos(rays[j].angle);
                 float yp = y - velocity.linear;
                 float phi = atan2(x, yp);
                 float Rp = (float) sqrt(pow(x, 2) + pow(yp, 2));
 
-                rays[j].range = (phi > 1.74 / 2) ? -MAXFLOAT : Rp;
-                rays[j].angle = (phi > 1.74 / 2) ? -MAXFLOAT : phi;
+                rays[j].range = (phi > 1.74 / 2) ? lim_float::min() : Rp;
+                rays[j].angle = (phi > 1.74 / 2) ? lim_float::min() : phi;
             }
             seif->sparsification();
         }
 //        j++;
 
         // Uncomment to see location at critical pts.
-//        static bool isDriving = false;
-//        std::cout << ((isDriving = !isDriving) ? "DRIVING -> " : "TURNING -> ");
-//        rPose = seif->getRoverPose();
-//        std::cout << rPose.x << ", " << rPose.y << ", " << rPose.theta << std::endl;
+        static bool isDriving = false;
+        std::cout << ((isDriving = !isDriving) ? "DRIVING -> " : "TURNING -> ");
+        rPose = seif->getRoverPose();
+        std::cout << rPose.x << ", " << rPose.y << ", " << rPose.theta << std::endl;
     }
 
     long totalCycles = 16 * 10;
@@ -623,58 +634,63 @@ void testSeif() {
     rPose = seif->getRoverPose();
     std::cout << "Final Pose: " << rPose.x << ", " << rPose.y << ", " << rPose.theta << std::endl;
 
-    std::cout << "SEIF (" << ((fabs(rPose.x) < 0.05 && fabs(rPose.y) < 0.05 && fabs(rPose.theta) <0.05) ? "PASS" : "FAIL") << ")" << std::endl;
-}
-
-void testFeatureSet() {
-    RAY incRay{.range = 2, .angle = (float) M_PI_2};
-    std::array<POSE, 3> rPoses {
-        POSE{.x = -2, .y = 5, .theta = (float) -M_PI_2},
-        POSE{.x = -1.57, .y = -1.57, .theta = -M_PI_4},
-        POSE{.x = 5, .y = -2, .theta = 0}
-    };
-
-    std::array<FEATURE, 7> features {
-        FEATURE {
-                .incidentRay = incRay,
-                .pose = Equations::getInstance()->originToPoint(incRay, rPoses[0], true)
-        },
-        FEATURE {
-                .incidentRay = incRay,
-                .pose = Equations::getInstance()->originToPoint(incRay, rPoses[1], true)
-        },
-        FEATURE {
-                .incidentRay = incRay,
-                .pose = Equations::getInstance()->originToPoint(incRay, rPoses[2], true)
-        },
-        FEATURE {
-                .incidentRay = incRay,
-                .pose = Equations::getInstance()->originToPoint(incRay, rPoses[0], true)
-        },
-        FEATURE {
-                .incidentRay = incRay,
-                .pose = Equations::getInstance()->originToPoint(incRay, rPoses[1], true)
-        },
-        FEATURE {
-                .incidentRay = incRay,
-                .pose = Equations::getInstance()->originToPoint(incRay, rPoses[2], true)
-        },
-        FEATURE {
-                .incidentRay = incRay,
-                .pose = Equations::getInstance()->originToPoint(incRay, rPoses[2], true)
-        },
-    };
-
-    for (int i = 0; i < 7; i++) {
-        FeatureSet::getInstance()->addToSet(features[i], rPoses[i]);
-        if (FeatureSet::getInstance()->readyToPublish()) {
-            auto FS = FeatureSet::getInstance()->publishSet();
-            publishFeatureSet(get<0>(FS), get<1>(FS));
-            rover = ActiveRovers::getInstance()->getRoverByName(roverName);
-            rover.integrateLocalFS(get<0>(FS), get<1>(FS));
-        }
+    if (fabs(rPose.theta) < 0.05) {
+        std::cout << "SEIF (" << ((std::fabs(rPose.x) < 0.05 && std::fabs(rPose.y) < 0.05 && 1) ? "PASS" : "FAIL")
+                  << ")" << std::endl;
+    } else {
+        std::cout << "SEIF (" << ((std::fabs(rPose.x) < 0.05 && std::fabs(rPose.y) < 0.05 && 0) ? "PASS" : "FAIL")
+                  << ")" << std::endl;
     }
 }
+
+//void testFeatureSet() {
+//    RAY incRay{.range = 2, .angle = (float) M_PI_2};
+//    std::array<POSE, 3> rPoses {
+//        POSE{.x = -2, .y = 5, .theta = (float) -M_PI_2},
+//        POSE{.x = -1.57, .y = -1.57, .theta = -M_PI_4},
+//        POSE{.x = 5, .y = -2, .theta = 0}
+//    };
+//
+//    std::array<FEATURE, 7> features {
+//        FEATURE{
+//                .incidentRay = incRay,
+//                .pose = Equations::getInstance()->originToPoint(incRay, rPoses[0], true)
+//        },
+//        FEATURE {
+//                .incidentRay = incRay,
+//                .pose = Equations::getInstance()->originToPoint(incRay, rPoses[1], true)
+//        },
+//        FEATURE {
+//                .incidentRay = incRay,
+//                .pose = Equations::getInstance()->originToPoint(incRay, rPoses[2], true)
+//        },
+//        FEATURE {
+//                .incidentRay = incRay,
+//                .pose = Equations::getInstance()->originToPoint(incRay, rPoses[0], true)
+//        },
+//        FEATURE {
+//                .incidentRay = incRay,
+//                .pose = Equations::getInstance()->originToPoint(incRay, rPoses[1], true)
+//        },
+//        FEATURE {
+//                .incidentRay = incRay,
+//                .pose = Equations::getInstance()->originToPoint(incRay, rPoses[2], true)
+//        },
+//        FEATURE {
+//                .incidentRay = incRay,
+//                .pose = Equations::getInstance()->originToPoint(incRay, rPoses[2], true)
+//        },
+//    };
+//
+//    for (int i = 0; i < 7; i++) {
+//        FeatureSet::getInstance()->addToSet(features[i], rPoses[i]);
+//        if (FeatureSet::getInstance()->readyToPublish()) {
+//            auto FS = FeatureSet::getInstance()->publishSet();
+//            publishFeatureSet(get<0>(FS), get<1>(FS));
+//            ActiveRovers::getInstance()->getRoverByName(roverName).integrateLocalFS(get<0>(FS), get<1>(FS));
+//        }
+//    }
+//}
 
 void testEnv() {
 

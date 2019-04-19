@@ -28,44 +28,43 @@ public:
     explicit RedBlackTree(LOCAL_MAP_CONFIG *localMapConfig) :
         availableIndexPtr(0),
         root(0),
-        tree(new std::vector<Node>(localMapConfig->maxFeatures)),
-        cleanTree(new std::vector<Node>(localMapConfig->maxFeatures)),
+        tree(std::vector<Node>(localMapConfig->maxFeatures)),
+        cleanTree(std::vector<Node>(localMapConfig->maxFeatures)),
         minProbability((float) (localMapConfig->featureSetML * PDF_MAX)) {}
     ~RedBlackTree() = default;
 
-    bool findMLClassifier(const CLASSIFIER &classifier, unsigned long &index);
+    bool findMLClassifier(const CLASSIFIER &classifier, uint16_t &index);
     void addToTree(const CLASSIFIER &classifier, const std::array<FEATURE, FEATURE_LIMIT> &features);
     void resetTree();
     void getFeaturesFromNode(std::array<FEATURE, FEATURE_LIMIT> &featuresToPopulate,
-            const unsigned long &nodeIndexPtr);
+            const uint16_t &nodeIndexPtr);
 
     // For testing purposes only!
     void printTree(NODE_PTR *root, int  level);
-    unsigned long *getRoot() {
+    uint16_t *getRoot() {
         return &(root);
     }
 
 private:
     float areaLikelihood(const float &area);
     float orientationLikelihood(const float &orient);
-    unsigned long singleRotation(const unsigned long &nodeIndex, const dir &direction);
-    unsigned long doubleRotation(const unsigned long &nodeIndex, const dir &direction);
-    bool isRed(unsigned long *nodeIndex);
-    bool isRed(Node *node);
+    uint16_t singleRotation(const uint16_t &nodeIndex, const dir &direction);
+    uint16_t doubleRotation(const uint16_t &nodeIndex, const dir &direction);
+    bool isRed(const uint16_t *nodeIndex);
+    bool isRed(const Node *node);
     void incrimentPtr();
-    void changeRootPtr(const unsigned long &index);
-    void changeNodeColor(const unsigned long &nodeIndex, const node_color *desiredColor);
+    void changeRootPtr(const uint16_t &index);
+    void changeNodeColor(const uint16_t &nodeIndex, const node_color *desiredColor);
     void balanaceTree(const float &signature);
-    Node *getNodeAt(const unsigned long *nodeIndex);
     dir changeDir(const dir &current);
-    void rotateNodes(const dir &ofRotation, Node &parent, const unsigned long &index);
-    void setChild(NODE_PTR *ptr, const unsigned long &newValue);
-    bool assignChildTo(NODE_PTR &node_ptr, unsigned long *otherPtr);
+    void rotateNodes(const dir &ofRotation, Node &parent, const uint16_t &index);
+    void setChild(NODE_PTR *ptr, const uint16_t &newValue);
+    bool assignChildTo(const NODE_PTR &node_ptr, uint16_t *otherPtr);
 
-    unsigned long availableIndexPtr;
-    unsigned long root;
-    std::shared_ptr<std::vector<Node>> tree;
-    std::shared_ptr<std::vector<Node>> cleanTree;
+    uint16_t availableIndexPtr;
+    uint16_t root;
+    std::vector<Node> tree;
+    std::vector<Node> cleanTree;
     float minProbability;
 };
 

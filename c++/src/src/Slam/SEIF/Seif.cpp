@@ -4,6 +4,8 @@
 
 #include "Seif.h"
 
+using lim_float = std::numeric_limits<float>;
+
 // IMPORTANT: should not be accessed/used outside of Seif
 POSE Seif::rPose = POSE{};
 
@@ -59,7 +61,8 @@ void Seif::measurementUpdate(const RAY &incidentRay) {
             this->organizeFeatures();
         }
     }
-    for (unsigned long featIdx = 0; featIdx < this->featuresFound; featIdx++) {
+
+    for (size_t featIdx = 0; featIdx < this->featuresFound; featIdx++) {
         feature = (*this->recordedFeatures)[featIdx];
         this->updateDeltaPos(feature.pose);
         this->update_q();
@@ -120,7 +123,8 @@ void Seif::updatePsi() {
 
 void Seif::updateLambda() {
     auto psi_T(*this->psi); psi_T.transpose();
-    *this->lambda = psi_T * *this->informationMatrix +
+    *this->lambda =
+            psi_T * *this->informationMatrix +
             *this->informationMatrix * *this->phi +
             psi_T * *this->informationMatrix * *this->phi;
 
@@ -184,7 +188,7 @@ void Seif::updateMuBar() {
 }
 
 void Seif::integrateActiveFeatures() {
-    u_long startIdx;
+    uint16_t startIdx;
     this->F_I->zeroMatrix();
     auto resVec(static_cast<Matrix<float>>(this->informationVector->numRows()));
 
@@ -200,9 +204,11 @@ void Seif::integrateActiveFeatures() {
 
         auto fi_T(*this->F_I); fi_T.transpose();
         auto inverse(*this->F_I * *this->informationMatrix * fi_T); inverse.invert();
-        resVec = inverse * *this->F_I *
+        resVec =
+                inverse * *this->F_I *
                 (*this->informationVector - *this->informationMatrix * *this->stateEstimate +
                 *this->informationMatrix * fi_T * *this->F_I * *this->stateEstimate);
+
         this->stateEstimate->at(startIdx) = resVec.at(num(pos_val::X));
         this->stateEstimate->at(startIdx + num(pos_val::Y)) = resVec.at(num(pos_val::Y));
 
@@ -217,7 +223,8 @@ void Seif::generateStateEstimate(const Matrix<float> *stateEstimate) {
     auto resVec(static_cast<Matrix<float>>(this->informationVector->numRows()));
     auto fx_T(*this->F_X); fx_T.transpose();
     auto inverse(*this->F_X * *this->informationMatrix * fx_T); inverse.invert();
-    resVec = inverse * *this->F_X *
+    resVec =
+            inverse * *this->F_X *
              (*this->informationVector - *this->informationMatrix * *stateEstimate +
               *this->informationMatrix * fx_T * *this->F_X * *stateEstimate);
     this->stateEstimate->at(num(pos_val::X)) = resVec.at(num(pos_val::X));
@@ -231,7 +238,7 @@ void Seif::generateStateEstimate(const Matrix<float> *stateEstimate) {
 }
 
 bool Seif::isNewFeature(const RAY &incidentRay) {
-    return incidentRay.range != -MAXFLOAT && incidentRay.angle != -MAXFLOAT;
+    return incidentRay.range != lim_float::min() && incidentRay.angle != lim_float::min();
 }
 
 void Seif::deriveFeature(FEATURE &feature, const RAY &incidentRay) {
@@ -258,8 +265,8 @@ void Seif::deriveFeature(FEATURE &feature, const RAY &incidentRay) {
  * @return Was the currently viewed feature previously observed.
  */
 bool Seif::hasBeenObserved(const float &correspondence) {
-    u_long front = 0;
-    u_long back = this->featuresFound ? this->featuresFound - 1 : 0;
+    uint16_t front = 0;
+    uint16_t back = this->featuresFound ? this->featuresFound - 1 : 0;
 
     if (!this->featuresFound) {
         return false;
@@ -303,7 +310,7 @@ void Seif::addFeature(FEATURE &feature) {
     (*this->recordedFeatures)[this->nextFeatureIndex()++] = feature;
 }
 
-u_long &Seif::nextFeatureIndex() {
+uint16_t &Seif::nextFeatureIndex() {
     if (this->featuresFound < this->maxFeatures) {
         return this->featuresFound;
     }
@@ -349,20 +356,21 @@ void Seif::updateZHat(const float &correspondence) {
     this->zHat->at(num(measurement::CORRESPONDENCE)) = correspondence;
 }
 
-void Seif::updateH(const unsigned long &idx) {
-    (*this->H)[num(pos_val::X)][num(pos_val::X)] = sqrt(this->q) * this->deltaPosition->at(num(pos_val::X));
-    (*this->H)[num(pos_val::X)][num(pos_val::Y)] = (-1) * sqrt(this->q) * this->deltaPosition->at(
-            num(pos_val::Y));
+void Seif::updateH(const uint16_t &idx) {
+    (*this->H)[num(pos_val::X)][num(pos_val::X)] =
+            sqrt(this->q) * this->deltaPosition->at(num(pos_val::X));
+    (*this->H)[num(pos_val::X)][num(pos_val::Y)] =
+            (-1) * sqrt(this->q) * this->deltaPosition->at(num(pos_val::Y));
     (*this->H)[num(pos_val::Y)][num(pos_val::X)] = this->deltaPosition->at(num(pos_val::Y));
     (*this->H)[num(pos_val::Y)][num(pos_val::Y)] = this->deltaPosition->at(num(pos_val::X));
     (*this->H)[num(pos_val::Y)][2] = -1;
 
-    unsigned long startIdx = featIdx(idx);
+    auto startIdx{featIdx(idx)};
 
-    (*this->H)[num(pos_val::X)][startIdx + num(pos_val::X)] = (-1) * sqrt(this->q) * this->deltaPosition->at(
-            num(pos_val::X));
-    (*this->H)[num(pos_val::X)][startIdx + num(pos_val::Y)] = sqrt(this->q) * this->deltaPosition->at(
-            num(pos_val::Y));
+    (*this->H)[num(pos_val::X)][startIdx + num(pos_val::X)] =
+            (-1) * sqrt(this->q) * this->deltaPosition->at(num(pos_val::X));
+    (*this->H)[num(pos_val::X)][startIdx + num(pos_val::Y)] =
+            sqrt(this->q) * this->deltaPosition->at(num(pos_val::Y));
     (*this->H)[num(pos_val::Y)][startIdx + num(pos_val::X)] = (-1) * this->deltaPosition->at(num(pos_val::Y));
     (*this->H)[num(pos_val::Y)][startIdx + num(pos_val::Y)] = (-1) * this->deltaPosition->at(num(pos_val::X));
     (*this->H)[2][startIdx + 2] = 1;
@@ -403,7 +411,7 @@ void Seif::updateInformationVector(const Matrix<float> *prevInfoMat) {
 Matrix<float> Seif::resolveProjection(const Matrix<float> *projection) {
     auto p_T(*projection); p_T.transpose();
     auto inverse(p_T * *this->informationMatrix * *projection); inverse.invert();
-    return *this->informationMatrix * *projection * inverse * p_T * *this->informationMatrix;
+    return static_cast<Matrix<>>(*this->informationMatrix * *projection * inverse * p_T * *this->informationMatrix);
 }
 
 Matrix<float> Seif::defineProjection(const FEATURE *feat, const bool &includePose) {
@@ -414,7 +422,7 @@ Matrix<float> Seif::defineProjection(const FEATURE *feat, const bool &includePos
         projection[num(pos_val::THETA)][num(pos_val::THETA)] = 1;
     }
     if (feat->correspondence >= 0) {
-        unsigned long startIdx = featIdx(feat->idx);
+        auto startIdx{featIdx(feat->idx)};
         projection[num(pos_val::X)][startIdx] = 1;
         projection[num(pos_val::Y)][startIdx + num(pos_val::Y)] = 1;
         projection[num(measurement::CORRESPONDENCE)][startIdx + num(measurement::CORRESPONDENCE)] = 1;
@@ -424,7 +432,7 @@ Matrix<float> Seif::defineProjection(const FEATURE *feat, const bool &includePos
 }
 
 void Seif::makeInactive(FEATURE *toDeact) {
-    toDeact->correspondence = -MAXFLOAT;
+    toDeact->correspondence = lim_float::min();
 }
 
 /**
