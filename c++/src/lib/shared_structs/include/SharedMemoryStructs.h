@@ -7,12 +7,12 @@
 
 #include "SLAMConfigIn.h"
 
-#define FILTER_LENGTH 64
-#define RANGE_SENSOR_COUNT 3
-#define FEATURE_LIMIT 3
-#define SIGNATURE_MAX 100
-#define ELEMENT_SIZE 3
-#define ROS_INTERVAL 0.1
+constexpr uint16_t FILTER_LENGTH = UINT16_C(64);
+constexpr uint16_t RANGE_SENSOR_COUNT = UINT16_C(3);
+constexpr uint16_t FEATURE_LIMIT = UINT16_C(3);
+constexpr uint16_t SIGNATURE_MAX = UINT16_C(100);
+constexpr uint16_t ELEMENT_SIZE = UINT16_C(3);
+constexpr float ROS_INTERVAL = 0.1;
 
 
 /**
@@ -94,6 +94,11 @@ typedef struct {
     JSON_CONFIG config;
     long block_id{};
 } SYS_CONFIG_IN;
+
+template<typename Enum>
+constexpr typename std::underlying_type<Enum>::type num(const Enum &anEnum) noexcept {
+    return static_cast<typename std::underlying_type<Enum>::type>(anEnum);
+};
 
 
 #endif //C_SHAREDSTRUCT_H

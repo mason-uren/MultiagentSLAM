@@ -4,6 +4,6 @@
 
 #include "RoverFactory.h"
 
-Rover* RoverFactory::create(ROVER_CONFIG *roverConfig) {
+RoverInterface* RoverFactory::create(ROVER_CONFIG *roverConfig) {
     return roverConfig->live ? new Rover(roverConfig) : new Rover(roverConfig->name);
 }

@@ -13,19 +13,16 @@
 
 #include "../../Utilities/Equations/Equations.h"
 
-typedef std::function<void(const std::array<FEATURE, FEATURE_LIMIT> &fs, const CLASSIFIER &classifier)> FeatureSetCallback;
-
 inline int idx(const int &i) { return i % FEATURE_LIMIT; };
 
 class FeatureSet {
-    friend class Seif;
+//    friend class Seif;
 public:
     static FeatureSet *getInstance() {
         static FeatureSet instance;
         return &instance;
     }
 
-//    void connectFSCallbacks(const std::array<FeatureSetCallback, 2> &calls);
     void addToSet(const FEATURE &feature, const POSE &rPose);
     bool readyToPublish();
     std::tuple<std::array<FEATURE, FEATURE_LIMIT>, CLASSIFIER> publishSet();
@@ -37,8 +34,8 @@ private:
             classifier(CLASSIFIER{}),
             currFeatIdx(0)
     {}
-    FeatureSet(const FeatureSet &);
-    void operator=(const FeatureSet &);
+    FeatureSet(const FeatureSet &) = delete;
+    void operator=(const FeatureSet &) = delete;
 
     void incrPtr();
     void analyzeFeats();

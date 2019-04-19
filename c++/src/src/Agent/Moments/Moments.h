@@ -50,8 +50,8 @@ private:
             motion(new STATS{}),
             measurement(new STATS{})
     {}
-    Moments(Moments const &);
-    void operator=(Moments const &);
+    Moments(Moments const &) = delete;
+    void operator=(Moments const &) = delete;
 
     std::shared_ptr<STATS> motion;
     std::shared_ptr<STATS> measurement;

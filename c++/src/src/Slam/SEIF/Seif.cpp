@@ -3,6 +3,7 @@
 //
 
 #include "Seif.h"
+
 // IMPORTANT: should not be accessed/used outside of Seif
 POSE Seif::rPose = POSE{};
 
@@ -34,10 +35,12 @@ POSE Seif::stateEstimateUpdate() {
     this->integrateActiveFeatures();
     this->generateStateEstimate(&stateEstimate);
     rPose = {
-        .x = Equations::getInstance()->isZero(this->stateEstimate->at(num(pos_val::X))) ? 0 : this->stateEstimate->at(
-                num(pos_val::X)),
-        .y = Equations::getInstance()->isZero(this->stateEstimate->at(num(pos_val::Y))) ? 0 : this->stateEstimate->at(
-                num(pos_val::Y)),
+        .x = Equations::getInstance()->isZero(
+                this->stateEstimate->at(num(pos_val::X))) ?
+                        0 : this->stateEstimate->at(num(pos_val::X)),
+        .y = Equations::getInstance()->isZero(
+                this->stateEstimate->at(num(pos_val::Y))) ?
+                        0 : this->stateEstimate->at(num(pos_val::Y)),
         .theta = Equations::getInstance()->wrapTheta(this->stateEstimate->at(num(pos_val::THETA)))
     };
     return rPose;
@@ -56,8 +59,6 @@ void Seif::measurementUpdate(const RAY &incidentRay) {
             this->organizeFeatures();
         }
     }
-    Matrix<float> vecSum(N);
-    Matrix<float> matrixSum(N, N);
     for (unsigned long featIdx = 0; featIdx < this->featuresFound; featIdx++) {
         feature = (*this->recordedFeatures)[featIdx];
         this->updateDeltaPos(feature.pose);

@@ -15,7 +15,7 @@
 #include <Eigen/SparseQR>
 #include <Eigen/SparseLU>
 #include <Eigen/OrderingMethods>
-template <class T>
+template <class T = float>
 class Matrix {
 public:
     explicit Matrix(const unsigned long &rows, const unsigned long &cols = 1) :

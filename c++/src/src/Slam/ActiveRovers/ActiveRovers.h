@@ -25,8 +25,8 @@ public:
 private:
     ActiveRovers() :
             active(new std::unordered_map<std::string, Rover *>()) {}
-    ActiveRovers(ActiveRovers const&);
-    void operator=(ActiveRovers const&);
+    ActiveRovers(ActiveRovers const&) = delete;
+    void operator=(ActiveRovers const&) = delete;
 
     std::shared_ptr<std::unordered_map<std::string, Rover *>> active;
 };

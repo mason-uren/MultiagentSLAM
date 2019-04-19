@@ -18,11 +18,10 @@ public:
     virtual VELOCITY *getVelocity() const = 0;
     virtual float getConfidence() const = 0;
 
-//protected:
-    virtual void setName(std::string name) = 0;
+    virtual void setName(const std::string &name) = 0;
     virtual void setCurrentPose(const POSE &pose) = 0;
-    virtual void setVelocity(VELOCITY velocity) = 0;
-    virtual void setConfidence(float confi) = 0;
+    virtual void setVelocity(const VELOCITY &velocity) = 0;
+    virtual void setConfidence(const float &confi) = 0;
 };
 
 #endif //C_ROVERINTERFACE_H
