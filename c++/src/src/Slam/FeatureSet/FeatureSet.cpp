@@ -57,6 +57,9 @@ void FeatureSet::fsOrientation() {
     for (int i = 0; i < FEATURE_LIMIT; i++) {
         classifier.orientation += Equations::getInstance()->wrapTheta(set[i].incidentRay.angle + incidentOrient[i]);
     }
+
+    // To be retreived by `integrateGlobalFS()`
+    set[0].pose.theta = classifier.orientation;
 }
 
 void FeatureSet::fsSignature() {

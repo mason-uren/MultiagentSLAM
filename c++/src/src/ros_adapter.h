@@ -29,6 +29,7 @@
 // Necessary functions
 void loadDefaultConfig();
 void jsonInitialize();
+void realtimeLoop();
 void kinematicHandler();
 void sonarHandler();
 //void auxilaryRoverHandler(const AuxilaryBeliefs &auxBeliefs);

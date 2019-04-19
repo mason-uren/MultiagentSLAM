@@ -29,10 +29,10 @@ void SlamAdapter::logAuxilaryFeatureSet(const std::array<FEATURE, 3> &features, 
 
 }
 
-void SlamAdapter::updateTransformationByRover(const std::array<float, 3> &transformation, std::string &pairedRover) {
-    float xTran = (*this->transformations)[pairedRover]->x_translation->filterValue(transformation[0]);
-    float yTran = (*this->transformations)[pairedRover]->y_translation->filterValue(transformation[1]);
-    float oTrain = (*this->transformations)[pairedRover]->orientation->filterValue(transformation[2]);
+void SlamAdapter::updateTransformationByRover(const POSE &transformation, const std::string &pairedRover) {
+    float xTran = (*this->transformations)[pairedRover]->x_translation->filterValue(transformation.x);
+    float yTran = (*this->transformations)[pairedRover]->y_translation->filterValue(transformation.y);
+    float oTrain = (*this->transformations)[pairedRover]->orientation->filterValue(transformation.theta);
 }
 
 void SlamAdapter::addTransformation(std::string &roverName, Transformation *trans) {

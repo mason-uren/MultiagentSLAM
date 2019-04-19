@@ -3,6 +3,7 @@
 //
 
 #include "Rover.h"
+
 unsigned int Rover::getID() const {
     return static_cast<unsigned int>(*this->ID.data);
 }
@@ -42,11 +43,6 @@ void Rover::addLocalMap(RedBlackTree *localMap) {
 }
 
 // TODO
-//void Rover::connectTransformationCallbacks(std::array<TransformationCallback, 2> &callbacks) {
-//
-//}
-
-// TODO
 void Rover::updatePoseVel(const POSE &pose, const VELOCITY velocity) {
 
 }
@@ -63,18 +59,38 @@ void Rover::updateBelief(const POSE &pose, float confidence) {
 
 // TODO
 void Rover::spareExtendedInformationFilter() {
-
+    this->seif->motionUpdate(*this->vel);
+    this->seif->stateEstimateUpdate();
+    this->seif->measurementUpdate(*this->detection->getIncidentRay());
+    this->seif->sparsification();
 }
 
-// TODO
 void Rover::integrateLocalFS(const std::array<FEATURE, FEATURE_LIMIT> &features, const CLASSIFIER &classifier) {
-    std::cout << "LOCAL PUBLISHER" << std::endl;
+    u_long idx;
+    if(!this->localMap->findMLClassifier(classifier, idx)) {
+        this->localMap->addToTree(classifier, features);
+    }
 }
 
-// TODO
-void Rover::integrateGlobalFS(const std::array<FEATURE, FEATURE_LIMIT> &features,
-        const CLASSIFIER &classifier, const int &publish) {
+void Rover::integrateGlobalFS(const std::array<FEATURE, FEATURE_LIMIT> &foundFeat, const CLASSIFIER &classifier, const string &publisher) {
+    u_long idx;
+    if (this->localMap->findMLClassifier(classifier, idx)) {
+        auto features{std::array<FEATURE, FEATURE_LIMIT>()};
+        this->localMap->getFeaturesFromNode(features, idx);
+        transformation = tuple<POSE, string>(this->estimateMapTransformation(features, foundFeat), publisher);
+    }
+}
 
+bool Rover::readyToPublish() {
+    if (this->canPublish) {
+        this->canPublish = false;
+        return true;
+    }
+    return false;
+}
+
+tuple<POSE, string> Rover::publish() {
+    return transformation;
 }
 
 void Rover::setName(std::string name) {
@@ -123,22 +139,26 @@ void Rover::tuneConfi() {
 
 }
 
-// TODO
-float *Rover::estimateMapTransformation(std::array<FEATURE, 3> &features, std::array<FEATURE, 3> &otherFeatures) {
-    return nullptr;
+POSE Rover::estimateMapTransformation( const array<FEATURE, FEATURE_LIMIT> &fs_1, const array<FEATURE, FEATURE_LIMIT> &fs_2) {
+    auto cent_1(Equations::getInstance()->centroid({
+        fs_1[0].pose,
+        fs_1[1].pose,
+        fs_1[2].pose
+    }));
+    auto cent_2(Equations::getInstance()->centroid({
+         fs_2[0].pose,
+         fs_2[1].pose,
+         fs_2[2].pose
+    }));
+    auto xyTrans(this->mapTranslation(cent_1, cent_2));
+    auto orient(this->mapOrientation(fs_1[0].pose.theta, fs_2[0].pose.theta));
+    return POSE{xyTrans.x, xyTrans.y, orient};
 }
 
-// TODO
-float *Rover::mapTranslation(const std::array<float, 2> &fsOentroid, const std::array<float, 2> &otherOentroid) {
-    return nullptr;
+LOCATION Rover::mapTranslation(const LOCATION &fsCentroid, const LOCATION &otherCentroid) {
+    return LOCATION{.x = fsCentroid.x - otherCentroid.x, .y = fsCentroid.y - otherCentroid.y};
 }
 
-// TODO
-float Rover::mapOrientation(float fsOrientation, float otherOrientation) {
-    return 0;
-}
-
-// TODO
-void Rover::shareTransformation(const std::array<float, 3> &transformation, int pairedRover) {
-
+float Rover::mapOrientation(const float &fsOrientation, const float &otherOrientation) {
+    return Equations::getInstance()->wrapTheta(fsOrientation - otherOrientation);
 }

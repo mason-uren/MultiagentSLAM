@@ -75,6 +75,11 @@ typedef struct {
 typedef struct {
     float x;
     float y;
+} LOCATION;
+
+typedef struct {
+    float x;
+    float y;
     float theta;
 } POSE;
 

@@ -4,6 +4,7 @@ int main() {
 
     loadDefaultConfig();
     jsonInitialize(); // All initialization should occur here.
+    realtimeLoop();
 
 //    testEnv();
 
@@ -19,7 +20,7 @@ int main() {
 //    testMatrix();
 //    testMatrixMan();
 //    testSeif();
-    testFeatureSet();
+//    testFeatureSet();
     return 0;
 }
 
@@ -88,12 +89,14 @@ void jsonInitialize() {
             }
         }
     }
+}
 
-    // TODO : 'callbacks' will need to be setup before becoming active
-
+void realtimeLoop() {
 
 }
 
+
+// TODO ROS stuff
 void publishFeatureSet(const std::array<FEATURE, FEATURE_LIMIT> &featureSet, const CLASSIFIER &classifer) {
     std::cout << "GLOBAL PUBLISHER" << std::endl;
 }
@@ -234,12 +237,14 @@ void testEquations() {
     std::cout << "Norm (" << (fabs(norm - 0.6) < 0.1 ? "PASS" : "FAIL") << ")" << std::endl;
 
     // Centroid
-    std::array<std::array<float, 2>, 3> pairs = {};
-    pairs.at(0) = {0, 0};
-    pairs.at(1) = {3, 0};
-    pairs.at(2) = {3, 4};
-    std::array<float, 2> result = Equations::getInstance()->centroid(pairs);
-    std::cout << "Centroid (" << ((result[0] == 2 && result[1] < 1.4 && result[1] > 1.2) ? "PASS" : "FAIL") << ")" <<std::endl;
+    std::array<POSE, 3> pairs{
+            POSE{0, 0, 0},
+            POSE{3, 0, 0},
+            POSE{3, 4, 0}
+    };
+
+    LOCATION result = Equations::getInstance()->centroid(pairs);
+    std::cout << "Centroid (" << ((result.x == 2 && fabs(result.y - 1.3) < 0.1) ? "PASS" : "FAIL") << ")" <<std::endl;
 
     // Cantor
     std::cout << "Cantor (" <<
@@ -247,8 +252,8 @@ void testEquations() {
         "FAIL" : "PASS") << ")" << std::endl;
 
     // Distance between two points
-    POSE temp = {.x = -1, .y = -7, .theta = 0};
-    POSE other = {.x = 2, .y = -3, .theta = 0};
+    POSE temp = {.x = -1, .y = -7, 0};
+    POSE other = {.x = 2, .y = -3, 0};
     std::cout << "Distance between pts (" <<
         ((Equations::getInstance()->distBetweenPts(temp, other) == 5) ? "PASS" : "FAIL") <<
         ")" << std::endl;
@@ -463,7 +468,6 @@ void testMatrixMan() {
     };
 
     Matrix<float> resMult = aMatrix * bMatrix;
-//            MatrixManipulator::getInstance()->multiply<float>(&aMatrix, &bMatrix);
     std::cout << "Matrix Multiplication (" << ((resMult == testMat) ? "PASS" : "FAIL") << ")" << std::endl;
 
     Matrix<float> mat_1 {
@@ -486,7 +490,7 @@ void testSeif() {
      *  #  |___|
      *     |___|
      *     ^
-     * Verify pose at each vertex.
+     * Verify location at each vertex.
      */
     POSE rPose;
     std::vector<RAY> rays {
@@ -538,7 +542,7 @@ void testSeif() {
         }
 //        j++;
 
-        // Uncomment to see pose at critical pts.
+        // Uncomment to see location at critical pts.
 //        static bool isDriving = false;
 //        std::cout << ((isDriving = !isDriving) ? "DRIVING -> " : "TURNING -> ");
 //        rPose = seif->getRoverPose();

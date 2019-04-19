@@ -21,9 +21,12 @@
 #include "../Detection/Detection.h"
 #include "../Moments/Moments.h"
 
-typedef std::function<void(float[3], int)> TransformationCallback;
-
 class FeatureSet;
+
+using std::array;
+using std::string;
+using std::tuple;
+using std::get;
 
 class Rover : virtual public RoverInterface {
 public:
@@ -43,8 +46,6 @@ public:
     {}
     ~Rover() override = default;
 
-//    friend void FeatureSet::publishSet();
-
     unsigned int getID() const override;
     std::string getName() const override;
     POSE *getCurrentPose() const override;
@@ -56,14 +57,15 @@ public:
     void addDetection(Detection *detection);
     void addLocalMap(RedBlackTree *localMap);
 
-//    void connectTransformationCallbacks(std::array<TransformationCallback, 2> &callbacks);
     void updatePoseVel(const POSE &pose, VELOCITY velocity);
     void updateMLIncidentRay(const std::array<SONAR, RANGE_SENSOR_COUNT> &sonar);
     void updateBelief(const POSE &pose, float confidence);
     void spareExtendedInformationFilter();
-    static void integrateLocalFS(const std::array<FEATURE, FEATURE_LIMIT> &features, const CLASSIFIER &classifier);
+    void integrateLocalFS(const std::array<FEATURE, FEATURE_LIMIT> &features, const CLASSIFIER &classifier);
     void integrateGlobalFS(const std::array<FEATURE, FEATURE_LIMIT> &features,
-            const CLASSIFIER &classifier, const int &publisher);
+            const CLASSIFIER &classifier, const string &publisher);
+    bool readyToPublish();
+    tuple<POSE, string> publish();
 
     // For testing purposes only!
     RedBlackTree *getLocalMap() {
@@ -85,11 +87,11 @@ private:
     void updateMeans();
     void updateVariances();
     void tuneConfi();
-    float *estimateMapTransformation(std::array<FEATURE, FEATURE_LIMIT> &features,
-            std::array<FEATURE, FEATURE_LIMIT> &otherFeatures);
-    float *mapTranslation(const std::array<float, 2> &fsOentroid, const std::array<float, 2> &otherOentroid);
-    float mapOrientation(float fsOrientation, float otherOrientation);
-    void shareTransformation(const std::array<float, 3> &transformation, int pairedRover);
+    POSE estimateMapTransformation(
+            const array<FEATURE, FEATURE_LIMIT> &fs_1,
+            const array<FEATURE, FEATURE_LIMIT> &fs_2);
+    LOCATION mapTranslation(const LOCATION &fsCentroid, const LOCATION &otherCentroid);
+    float mapOrientation(const float &fsOrientation, const float &otherOrientation);
 
     /**
      * Variables
@@ -103,8 +105,10 @@ private:
     std::shared_ptr<Detection> detection;
     std::shared_ptr<RedBlackTree> localMap;
 
+    tuple<POSE, string> transformation{};
+    bool canPublish{};
+
     static bool writingPose;
-    std::shared_ptr<std::array<TransformationCallback, 2>> callbacks;
 };
 
 

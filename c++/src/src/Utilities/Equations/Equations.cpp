@@ -34,10 +34,10 @@ float Equations::normalizeValue(const float &value, const float &lowbound, const
     return (value - lowbound) / (highbound - lowbound);
 }
 
-std::array<float, 2> Equations::centroid(const std::array<std::array<float, 2>, 3> &coordinatePairs) {
-    return {
-            (coordinatePairs[0][static_cast<int>(pos_val::X)] + coordinatePairs[1][static_cast<int>(pos_val::X)] + coordinatePairs[2][static_cast<int>(pos_val::X)]) / 3,
-            (coordinatePairs[0][static_cast<int>(pos_val::Y)] + coordinatePairs[1][static_cast<int>(pos_val::Y)] + coordinatePairs[2][static_cast<int>(pos_val::Y)]) / 3
+LOCATION Equations::centroid(const std::array<POSE, 3> &coordinatePairs) {
+    return LOCATION {
+            (coordinatePairs[0].x + coordinatePairs[1].x + coordinatePairs[2].x) / 3,
+            (coordinatePairs[0].y + coordinatePairs[1].y + coordinatePairs[2].y) / 3
     };
 }
 
