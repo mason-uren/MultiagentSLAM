@@ -4,29 +4,29 @@
 
 #include "SlamAdapter.h"
 
-// TODO
-void SlamAdapter::updateKinematics(const POSE &pose, const VELOCITY &vel) {
-
+void SlamAdapter::updateKinematics(const string &rName, const POSE &pose, const VELOCITY &vel) {
+    *rover = ActiveRovers::getInstance()->getRoverByName(rName);
+    rover->updatePoseVel(pose, vel);
 }
 
-// TODO
-void SlamAdapter::updateDetections(const std::array<SONAR, 3> &sonar) {
-
+void SlamAdapter::updateDetections(const string &rName, const std::array<SONAR, 3> &sonar) {
+    *rover = ActiveRovers::getInstance()->getRoverByName(rName);
+    rover->updateMLIncidentRay(sonar);
 }
 
-// TODO
-void SlamAdapter::recordAuxilaryRoversBelief(const POSE &pose, const float confidence) {
-
+void SlamAdapter::recordAuxilaryRoversBelief(const string &rName, const POSE &pose, const float confidence) {
+    *rover = ActiveRovers::getInstance()->getRoverByName(rName);
+    rover->updateBelief(pose, confidence);
 }
 
-// TODO
-void SlamAdapter::slamUpdate() {
-
+void SlamAdapter::slamUpdate(const string &rName) {
+    *rover = ActiveRovers::getInstance()->getRoverByName(rName);
+    rover->spareExtendedInformationFilter();
 }
 
-// TODO
-void SlamAdapter::logAuxilaryFeatureSet(const std::array<FEATURE, 3> &features, const CLASSIFIER &classifier, const int publisher) {
-
+void SlamAdapter::logAuxilaryFeatureSet(const string &rName, const std::array<FEATURE, 3> &features, const CLASSIFIER &classifier, const string &publisher) {
+    *rover = ActiveRovers::getInstance()->getRoverByName(rName);
+    rover->integrateGlobalFS(features, classifier, publisher);
 }
 
 void SlamAdapter::updateTransformationByRover(const POSE &transformation, const std::string &pairedRover) {

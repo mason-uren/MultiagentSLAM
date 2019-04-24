@@ -6,12 +6,11 @@
 #define MULTIAGENTSLAM_ROS_ADAPTER_H
 
 #include <memory>
-
+#include <cstdlib>
 #include <iostream>
 #include <sstream>
 #include <cmath>
 #include <Eigen/Dense>
-
 
 #include <MeanFilter.h>
 #include <VarianceFilter.h>
@@ -20,23 +19,22 @@
 
 #include "Agent/Rover/RoverFactory.h"
 #include "Slam/SlamAdapter/SlamAdapter.h"
+#include "Slam/FeatureSet/FeatureSet.h"
 #include "Utilities/SharedMemory/SharedMemory.h"
 #include "Utilities/ConfigParser/ConfigParser.h"
 #include "Utilities/Equations/Equations.h"
 
-//friend class FeatureSet;
-
 // Necessary functions
 void loadDefaultConfig();
 void jsonInitialize();
-void realtimeLoop();
-void kinematicHandler();
-void sonarHandler();
+void kinematicHandler(const POSE &pose, const VELOCITY &vel); // TODO will need to change for ROS
+void sonarHandler(const std::array<SONAR, 3> &sonar); // TODO will need to change for ROS
+void slamHandler();
 //void auxilaryRoverHandler(const AuxilaryBeliefs &auxBeliefs);
 //void featureSetHandler(const AuxilaryFeatureSets &auxFS);
 //void transformationHandler(const TransformationPairs &transPairs);
 void publishFeatureSet(const std::array<FEATURE, FEATURE_LIMIT> &featureSet, const CLASSIFIER &classifer);
-void publishTransformation(const Transformation &trans, const int &rID);
+void publishTransformation(const POSE &trans, const string &rID);
 
 void testEnv();
 
@@ -55,17 +53,12 @@ void testMatrixMan();
 void testSeif();
 void testFeatureSet();
 
-using json = nlohmann::json;
-using std::shared_ptr;
-using std::string;
-using std::get;
-
-static shared_ptr<SharedMemory> sharedMemory;
-static shared_ptr<ConfigParser> configParser;
-static shared_ptr<Seif> seif;
-static shared_ptr<Detection> detection;
-static shared_ptr<RedBlackTree> localMap;
-static shared_ptr<SYS_CONFIG_IN> systemConfig;
+static unique_ptr<SharedMemory> sharedMemory;
+static unique_ptr<ConfigParser> configParser;
+static unique_ptr<Seif> seif;
+static unique_ptr<Detection> detection;
+static unique_ptr<RedBlackTree> localMap;
+static unique_ptr<SYS_CONFIG_IN> systemConfig;
 
 static Rover rover{};
 static string roverName;

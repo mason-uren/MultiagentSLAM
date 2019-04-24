@@ -23,20 +23,16 @@
 #include "../../Utilities/Equations/Equations.h"
 #include "../FeatureSet/FeatureSet.h"
 
+using std::make_unique;
+using std::unique_ptr;
+
 enum relation {
     EQUIV = 0,
     LOWER,
     HIGHER,
 };
 
-inline unsigned long featIdx(const unsigned long &idx) { return 3 * idx + 3; }
-
-template<typename Enum>
-constexpr typename std::underlying_type<Enum>::type num(const Enum &anEnum) noexcept {
-    return (u_long) static_cast<typename std::underlying_type<Enum>::type>(anEnum);
-};
-
-class FeatureSet;
+inline constexpr unsigned long featIdx(const unsigned long &idx) { return 3 * idx + 3; }
 
 class Seif {
 public:
@@ -52,23 +48,23 @@ public:
         recordedFeatures(new std::vector<FEATURE>(seifConfig->maxFeatures, FEATURE{})),
         activeFeatures(new std::vector<FEATURE>((u_long) maxActiveFeatures, FEATURE{})),
         toDeactivate(new FEATURE{}),
-        informationMatrix(new Matrix<float>(N, N)),
-        informationVector(new Matrix<float>(N)),
-        stateEstimate(new Matrix<float>(N)),
-        motionCov(new Matrix<float>(ELEMENT_SIZE, ELEMENT_SIZE)),
-        measurementCov(new Matrix<float>(ELEMENT_SIZE, ELEMENT_SIZE)),
-        F_X(new Matrix<float>(ELEMENT_SIZE, N)),
-        delta(new Matrix<float>(ELEMENT_SIZE)),
-        del(new Matrix<float>(ELEMENT_SIZE, ELEMENT_SIZE)),
-        psi(new Matrix<float>(N, N)),
-        lambda(new Matrix<float>(N, N)),
-        phi(new Matrix<float>(N, N)),
-        kappa(new Matrix<float>(N, N)),
-        F_I(new Matrix<float>((ELEMENT_SIZE - 1), N)),
-        deltaPosition(new Matrix<float>(ELEMENT_SIZE - 1)),
+        informationMatrix(new Matrix<>(N, N)),
+        informationVector(new Matrix<>(N)),
+        stateEstimate(new Matrix<>(N)),
+        motionCov(new Matrix<>(ELEMENT_SIZE, ELEMENT_SIZE)),
+        measurementCov(new Matrix<>(ELEMENT_SIZE, ELEMENT_SIZE)),
+        F_X(new Matrix<>(ELEMENT_SIZE, N)),
+        delta(new Matrix<>(ELEMENT_SIZE)),
+        del(new Matrix<>(ELEMENT_SIZE, ELEMENT_SIZE)),
+        psi(new Matrix<>(N, N)),
+        lambda(new Matrix<>(N, N)),
+        phi(new Matrix<>(N, N)),
+        kappa(new Matrix<>(N, N)),
+        F_I(new Matrix<>((ELEMENT_SIZE - 1), N)),
+        deltaPosition(new Matrix<>(ELEMENT_SIZE - 1)),
         q(0),
-        zHat(new Matrix<float>(ELEMENT_SIZE)),
-        H(new Matrix<float>(ELEMENT_SIZE, N))
+        zHat(new Matrix<>(ELEMENT_SIZE)),
+        H(new Matrix<>(ELEMENT_SIZE, N))
     {
         // Init
         for (u_long i = 0; i < ELEMENT_SIZE; i++) {
@@ -86,8 +82,6 @@ public:
     POSE stateEstimateUpdate();
     void measurementUpdate(const RAY &incidentRay);
     void sparsification();
-
-    // For testing purposes only.
     POSE getRoverPose();
     void printRoverPose();
 
@@ -110,7 +104,7 @@ private:
 
     // State Estimate (func)
     void integrateActiveFeatures();
-    void generateStateEstimate(const Matrix<float> *stateEstimate);
+    void generateStateEstimate(const Matrix<> *stateEstimate);
 
     // Measurement Update (func)
     bool isNewFeature(const RAY &incidentRay);
@@ -130,9 +124,9 @@ private:
 
     // Sparsification (func)
     void updateInformationMatrix();
-    void updateInformationVector(const Matrix<float> *prevInfoMat);
-    Matrix<float> resolveProjection(const Matrix<float> *projection);
-    Matrix<float> defineProjection(const FEATURE *feat, const bool &includePose = true);
+    void updateInformationVector(const Matrix<> *prevInfoMat);
+    Matrix<> resolveProjection(const Matrix<> *projection);
+    Matrix<> defineProjection(const FEATURE *feat, const bool &includePose = true);
     void makeInactive(FEATURE *toDeact);
 
     // Tools
@@ -150,33 +144,33 @@ private:
     int maxActiveFeatures;
     float minFeatureDist;
     float maxCorrespondence;
-    std::shared_ptr<std::vector<FEATURE>> recordedFeatures;
-    std::shared_ptr<std::vector<FEATURE>> activeFeatures;
-    std::shared_ptr<FEATURE> toDeactivate;
-    std::shared_ptr<Matrix<float>> informationMatrix;
-    std::shared_ptr<Matrix<float>> informationVector;
-    std::shared_ptr<Matrix<float>> stateEstimate;
+    unique_ptr<std::vector<FEATURE>> recordedFeatures;
+    unique_ptr<std::vector<FEATURE>> activeFeatures;
+    unique_ptr<FEATURE> toDeactivate;
+    unique_ptr<Matrix<>> informationMatrix;
+    unique_ptr<Matrix<>> informationVector;
+    unique_ptr<Matrix<>> stateEstimate;
 
-    std::shared_ptr<Matrix<float>> motionCov;
-    std::shared_ptr<Matrix<float>> measurementCov;
+    unique_ptr<Matrix<>> motionCov;
+    unique_ptr<Matrix<>> measurementCov;
 
     // Motion Update (vars)
-    std::shared_ptr<Matrix<float>> F_X;
-    std::shared_ptr<Matrix<float>> delta;
-    std::shared_ptr<Matrix<float>> del;
-    std::shared_ptr<Matrix<float>> psi;
-    std::shared_ptr<Matrix<float>> lambda;
-    std::shared_ptr<Matrix<float>> phi;
-    std::shared_ptr<Matrix<float>> kappa;
+    unique_ptr<Matrix<>> F_X;
+    unique_ptr<Matrix<>> delta;
+    unique_ptr<Matrix<>> del;
+    unique_ptr<Matrix<>> psi;
+    unique_ptr<Matrix<>> lambda;
+    unique_ptr<Matrix<>> phi;
+    unique_ptr<Matrix<>> kappa;
 
     // State Estimate (vars)
-    std::shared_ptr<Matrix<float>> F_I;
+    unique_ptr<Matrix<>> F_I;
 
     // Measurment (vars)
-    std::shared_ptr<Matrix<float>> deltaPosition;
+    unique_ptr<Matrix<>> deltaPosition;
     float q;
-    std::shared_ptr<Matrix<float>> zHat;
-    std::shared_ptr<Matrix<float>> H;
+    unique_ptr<Matrix<>> zHat;
+    unique_ptr<Matrix<>> H;
 };
 
 #endif //C_SEIF_H

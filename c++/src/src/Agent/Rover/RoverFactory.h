@@ -7,11 +7,12 @@
 
 
 #include <SLAMConfigIn.h>
+#include <RoverInterface.h>
 #include "Rover.h"
 
 class RoverFactory {
 public:
-    static Rover *create(ROVER_CONFIG *roverConfig);
+    static RoverInterface *create(ROVER_CONFIG *roverConfig);
 };
 
 

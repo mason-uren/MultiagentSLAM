@@ -12,6 +12,8 @@
 #include "../ActiveRovers/ActiveRovers.h"
 #include "../Transformation/Transformation.h"
 
+using std::string;
+
 class SlamAdapter {
 public:
     static SlamAdapter *getInstance() {
@@ -19,12 +21,12 @@ public:
         return &instance;
     }
 
-    void updateKinematics(const POSE &pose, const VELOCITY &vel);
-    void updateDetections(const std::array<SONAR, 3> &sonar);
-    void recordAuxilaryRoversBelief(const POSE &pose, float confidence);
+    void updateKinematics(const string &rName, const POSE &pose, const VELOCITY &vel);
+    void updateDetections(const string &rName, const std::array<SONAR, 3> &sonar);
+    void recordAuxilaryRoversBelief(const string &rName, const POSE &pose, float confidence);
 
-    void slamUpdate();
-    void logAuxilaryFeatureSet(const std::array<FEATURE, 3> &features, const CLASSIFIER &classifier, int publisher);
+    void slamUpdate(const string &rName);
+    void logAuxilaryFeatureSet(const string &rName, const std::array<FEATURE, 3> &features, const CLASSIFIER &classifier, const string &publisher);
     void updateTransformationByRover(const POSE &transformation, const std::string &pairedRover);
     void addTransformation(std::string &roverName, Transformation *trans);
 
@@ -39,8 +41,8 @@ private:
             transformations(new std::unordered_map<std::string, Transformation *>())
             {}
 
-    SlamAdapter(SlamAdapter const&);
-    void operator=(SlamAdapter const&);
+    SlamAdapter(SlamAdapter const&) = delete;
+    void operator=(SlamAdapter const&) = delete;
 
     /**
      * Variables

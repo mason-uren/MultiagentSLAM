@@ -34,8 +34,8 @@ public:
 
 private:
     Equations () = default;
-    Equations(Equations const&);
-    void operator=(Equations const&);
+    Equations(Equations const&) = delete;
+    void operator=(Equations const&) = delete;
 };
 
 

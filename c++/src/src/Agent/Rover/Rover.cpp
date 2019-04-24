@@ -21,7 +21,7 @@ POSE * Rover::getCurrentPose() const {
 }
 
 float Rover::getConfidence() const {
-    return this->confidence;
+    return this->confidence->getValue();
 }
 
 void Rover::addSeif(Seif *seif) {
@@ -42,25 +42,23 @@ void Rover::addLocalMap(RedBlackTree *localMap) {
     }
 }
 
-// TODO
-void Rover::updatePoseVel(const POSE &pose, const VELOCITY velocity) {
-
+void Rover::updatePoseVel(const POSE &pose, const VELOCITY &velocity) {
+    this->setVelocity(velocity);
+    this->integratePose(pose);
 }
 
-// TODO
 void Rover::updateMLIncidentRay(const std::array<SONAR, 3> &sonar) {
-
+    this->detection->MLIncidentRay(sonar);
 }
 
-// TODO
-void Rover::updateBelief(const POSE &pose, float confidence) {
-
+void Rover::updateBelief(const POSE &pose, const float &confidence) {
+    this->setCurrentPose(pose);
+    this->setConfidence(confidence);
 }
 
-// TODO
 void Rover::spareExtendedInformationFilter() {
     this->seif->motionUpdate(*this->vel);
-    this->seif->stateEstimateUpdate();
+    this->integrateFilteredPose(this->seif->stateEstimateUpdate());
     this->seif->measurementUpdate(*this->detection->getIncidentRay());
     this->seif->sparsification();
 }
@@ -78,6 +76,7 @@ void Rover::integrateGlobalFS(const std::array<FEATURE, FEATURE_LIMIT> &foundFea
         auto features{std::array<FEATURE, FEATURE_LIMIT>()};
         this->localMap->getFeaturesFromNode(features, idx);
         transformation = tuple<POSE, string>(this->estimateMapTransformation(features, foundFeat), publisher);
+        this->canPublish = true;
     }
 }
 
@@ -93,50 +92,63 @@ tuple<POSE, string> Rover::publish() {
     return transformation;
 }
 
-void Rover::setName(std::string name) {
+void Rover::setName(const std::string &name) {
     this->name = name;
 }
 
-void Rover::setVelocity(VELOCITY velocity) {
+void Rover::setVelocity(const VELOCITY &velocity) {
     *this->vel = velocity;
 }
 
 void Rover::setCurrentPose(const POSE &belief) {
+    lock_guard<mutex> guard(mtx);
     *this->pose = belief;
 }
 
-void Rover::setConfidence(float confi) {
-    this->confidence = confi;
+void Rover::setConfidence(const float &confi) {
+    lock_guard<mutex> guard(mtx);
+    this->confidence->filterValue(confi);
 }
 
-// TODO
 void Rover::integratePose(const POSE &pose) {
-
+    this->setCurrentPose(pose);
+    this->updateMeans();
+    this->updateVariances();
 }
 
-// TODO
 void Rover::integrateFilteredPose(const POSE &pose) {
-
+    this->integratePose(pose);
+    this->tuneConfi();
 }
 
-// TODO
-void Rover::updateMoments() {
-
-}
-
-// TODO
 void Rover::updateMeans() {
-
+    Moments::getInstance()->getMotion()->means[num(pos_val::X)]->onlineAverage(pose->x);
+    Moments::getInstance()->getMotion()->means[num(pos_val::Y)]->onlineAverage(pose->y);
+    Moments::getInstance()->getMotion()->means[num(pos_val::THETA)]->onlineAverage(pose->theta);
 }
 
-// TODO
 void Rover::updateVariances() {
-
+    Moments::getInstance()->getMotion()->variances[num(pos_val::X)]->onlineVariance(
+            pose->x,
+            Moments::getInstance()->getMotion()->means[num(pos_val::X)]->getFilteredValue());
+    Moments::getInstance()->getMotion()->variances[num(pos_val::Y)]->onlineVariance(
+            pose->y,
+            Moments::getInstance()->getMotion()->means[num(pos_val::Y)]->getFilteredValue());
+    Moments::getInstance()->getMotion()->variances[num(pos_val::THETA)]->onlineVariance(
+            pose->theta,
+            Moments::getInstance()->getMotion()->means[num(pos_val::THETA)]->getFilteredValue());
 }
 
-// TODO
 void Rover::tuneConfi() {
+    float sum{0};
+    for (auto variance : Moments::getInstance()->getMotion()->variances) {
+        sum += variance->getFilteredVariance();
+    }
 
+    // max sum confi is 3 (ie for <x, y, theta> st. individ confi max is 1)
+    this->setConfidence(
+            Equations::getInstance()->normalizeValue(sum, 0, MAX_CONFI)
+            );
 }
 
 POSE Rover::estimateMapTransformation( const array<FEATURE, FEATURE_LIMIT> &fs_1, const array<FEATURE, FEATURE_LIMIT> &fs_2) {
